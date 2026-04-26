@@ -97,7 +97,7 @@ function snapshotTimestamp(date: Date): string {
   );
 }
 
-const SNAPSHOT_RE = /^(.+)\.bak\.(\d{8}-\d{6})$/;
+const SNAPSHOT_RE = /^\.?(.+)\.bak\.(\d{8}-\d{6})$/;
 
 export async function writeSnapshot(
   root: FileSystemDirectoryHandle,
@@ -106,7 +106,7 @@ export async function writeSnapshot(
 ): Promise<string> {
   const { parent, baseName } = await getParentDir(root, filePath);
   const stamp = snapshotTimestamp(new Date());
-  const snapshotName = `${baseName}.bak.${stamp}`;
+  const snapshotName = `.${baseName}.bak.${stamp}`;
   const handle = await parent.getFileHandle(snapshotName, { create: true });
   const writable = await handle.createWritable();
   await writable.write(content);
