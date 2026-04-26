@@ -2,7 +2,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, highlightActiveLine } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { indentOnInput, bracketMatching } from "@codemirror/language";
+import { indentOnInput, indentUnit, bracketMatching } from "@codemirror/language";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { markdownLivePreview } from "./live-preview";
 
@@ -39,6 +39,7 @@ export function createEditor(parent: HTMLElement, onChange: EditorChangeHandler)
     extensions: [
       highlightActiveLine(),
       history(),
+      indentUnit.of("    "),
       indentOnInput(),
       bracketMatching(),
       highlightSelectionMatches(),

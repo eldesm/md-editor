@@ -82,20 +82,6 @@ class HorizontalRuleWidget extends WidgetType {
   }
 }
 
-class BulletDotWidget extends WidgetType {
-  eq(_other: BulletDotWidget): boolean {
-    return true;
-  }
-  toDOM(): HTMLElement {
-    const span = document.createElement("span");
-    span.className = "cm-md-bullet-dot";
-    return span;
-  }
-  ignoreEvent(): boolean {
-    return true;
-  }
-}
-
 function computeHeadingNumbers(view: EditorView): Map<number, string> {
   const result = new Map<number, string>();
   const counters = [0, 0, 0, 0, 0, 0];
@@ -273,46 +259,13 @@ function buildDecorations(view: EditorView): DecorationSet {
           return;
         }
 
-        // List items: tag each covered line with a depth class (for guide lines)
-        if (node.name === "ListItem") {
-          let depth = 1;
-          let parent = node.node.parent;
-          while (parent) {
-            if (parent.name === "ListItem") depth++;
-            parent = parent.parent;
-          }
-          const cls = `cm-md-list-d${Math.min(depth, 6)}`;
-          let pos = node.from;
-          while (pos <= node.to) {
-            const line = view.state.doc.lineAt(pos);
-            pending.push({
-              from: line.from,
-              to: line.from,
-              deco: Decoration.line({ class: cls }),
-            });
-            if (line.to >= node.to) break;
-            pos = line.to + 1;
-          }
-          return;
-        }
-
-        // List markers: dot widget for unordered, styled number for ordered
+        // List markers: keep as plain text with subtle muted styling
         if (node.name === "ListMark" && node.from < node.to) {
-          const text = view.state.sliceDoc(node.from, node.to);
-          const isUnordered = /^[-*+]$/.test(text.trim());
-          if (isUnordered && !onActive) {
-            pending.push({
-              from: node.from,
-              to: node.to,
-              deco: Decoration.replace({ widget: new BulletDotWidget() }),
-            });
-          } else {
-            pending.push({
-              from: node.from,
-              to: node.to,
-              deco: Decoration.mark({ class: "cm-md-list-mark" }),
-            });
-          }
+          pending.push({
+            from: node.from,
+            to: node.to,
+            deco: Decoration.mark({ class: "cm-md-list-mark" }),
+          });
           return;
         }
 

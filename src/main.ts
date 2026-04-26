@@ -7,6 +7,12 @@ import {
   writeFile,
   createFile,
   renameFile,
+  writeSnapshot,
+  pruneSnapshots,
+  hasSnapshots,
+  listSnapshots,
+  readSnapshot,
+  type SnapshotInfo,
   type FileNode,
   type TreeNode,
 } from "./filesystem";
@@ -14,6 +20,8 @@ import { FileTree } from "./file-tree";
 import * as storage from "./storage";
 
 const SAVE_DEBOUNCE_MS = 400;
+const SNAPSHOT_IDLE_MS = 3 * 60 * 1000;
+const SNAPSHOT_MAX = 10;
 const STORAGE_KEY_DIR = "lastDir";
 const STORAGE_KEY_FILE = "lastFile";
 
@@ -29,11 +37,15 @@ const saveStatusEl = document.getElementById("save-status") as HTMLSpanElement;
 const wordCountEl = document.getElementById("word-count") as HTMLSpanElement;
 const editorEl = document.getElementById("editor") as HTMLDivElement;
 const docTitleEl = document.getElementById("doc-title") as HTMLInputElement;
+const versionsBtn = document.getElementById("versions-btn") as HTMLButtonElement;
+const versionsPopover = document.getElementById("versions-popover") as HTMLDivElement;
 
 let dirHandle: FileSystemDirectoryHandle | null = null;
 let tree: TreeNode[] = [];
 let activeFile: FileNode | null = null;
 let saveTimer: number | null = null;
+let snapshotTimer: number | null = null;
+let lastSnapshotContent = "";
 let suppressChange = false;
 
 const editor = createEditor(editorEl, handleEditorChange);
@@ -113,8 +125,11 @@ async function openFile(file: FileNode): Promise<void> {
     saveTimer = null;
     if (activeFile) await saveActive(editor.state.doc.toString());
   }
+  clearSnapshotTimer();
+  closeVersionsPopover();
   activeFile = file;
   const content = await readFile(file.handle);
+  lastSnapshotContent = content;
   suppressChange = true;
   setEditorContent(editor, content);
   suppressChange = false;
@@ -122,10 +137,21 @@ async function openFile(file: FileNode): Promise<void> {
   setDocTitle(file);
   updateWordCount(content);
   setSaveStatus("saved");
+  versionsBtn.disabled = false;
   fileTree.expandToFile(file.path);
   fileTree.refresh();
   editor.focus();
   void storage.set(STORAGE_KEY_FILE, file.path);
+
+  if (dirHandle) {
+    try {
+      if (!(await hasSnapshots(dirHandle, file.path))) {
+        await writeSnapshot(dirHandle, file.path, content);
+      }
+    } catch (err) {
+      console.error("Initial snapshot failed:", err);
+    }
+  }
 }
 
 const INVALID_NAME_RE = /[/\\:*?"<>|]/;
@@ -199,6 +225,41 @@ async function saveActive(content: string): Promise<void> {
   }
 }
 
+async function takeSnapshot(manual: boolean): Promise<void> {
+  if (!activeFile || !dirHandle) return;
+  const content = editor.state.doc.toString();
+  if (!manual && content === lastSnapshotContent) return;
+  try {
+    await writeSnapshot(dirHandle, activeFile.path, content);
+    await pruneSnapshots(dirHandle, activeFile.path, SNAPSHOT_MAX);
+    lastSnapshotContent = content;
+    if (manual) {
+      setSaveStatus("saved", "Snapshot saved");
+      window.setTimeout(() => setSaveStatus("saved"), 1500);
+    }
+  } catch (err) {
+    console.error("Snapshot failed:", err);
+    if (manual) {
+      setSaveStatus("error", "Snapshot failed");
+    }
+  }
+}
+
+function scheduleSnapshot(): void {
+  if (snapshotTimer !== null) clearTimeout(snapshotTimer);
+  snapshotTimer = window.setTimeout(() => {
+    snapshotTimer = null;
+    void takeSnapshot(false);
+  }, SNAPSHOT_IDLE_MS);
+}
+
+function clearSnapshotTimer(): void {
+  if (snapshotTimer !== null) {
+    clearTimeout(snapshotTimer);
+    snapshotTimer = null;
+  }
+}
+
 function handleEditorChange(content: string): void {
   updateWordCount(content);
   if (suppressChange || !activeFile) return;
@@ -208,6 +269,7 @@ function handleEditorChange(content: string): void {
     saveTimer = null;
     void saveActive(content);
   }, SAVE_DEBOUNCE_MS);
+  scheduleSnapshot();
 }
 
 async function applyOpenedFolder(
@@ -220,10 +282,14 @@ async function applyOpenedFolder(
   folderNameEl.style.color = "";
   newFileBtn.disabled = false;
   refreshBtn.disabled = false;
+  clearSnapshotTimer();
+  closeVersionsPopover();
   activeFile = null;
+  lastSnapshotContent = "";
   suppressChange = true;
   setEditorContent(editor, "");
   suppressChange = false;
+  versionsBtn.disabled = true;
   renderBreadcrumbs();
   setDocTitle(null);
   updateWordCount("");
@@ -328,6 +394,111 @@ function toggleSidebar(): void {
   appEl.classList.toggle("sidebar-collapsed");
 }
 
+function formatRelative(date: Date): string {
+  const diff = (Date.now() - date.getTime()) / 1000;
+  if (diff < 60) return "zojuist";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min geleden`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} uur geleden`;
+  if (diff < 172800) return "gisteren";
+  return `${Math.floor(diff / 86400)} dagen geleden`;
+}
+
+function formatStamp(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function closeVersionsPopover(): void {
+  versionsPopover.hidden = true;
+  versionsPopover.innerHTML = "";
+}
+
+function renderVersions(snaps: SnapshotInfo[]): void {
+  versionsPopover.innerHTML = "";
+  if (snaps.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "version-empty";
+    empty.textContent = "No versions yet";
+    versionsPopover.appendChild(empty);
+    return;
+  }
+  for (const snap of snaps) {
+    const item = document.createElement("div");
+    item.className = "version-item";
+
+    const rel = document.createElement("span");
+    rel.className = "version-relative";
+    rel.textContent = formatRelative(snap.date);
+    item.appendChild(rel);
+
+    const stamp = document.createElement("span");
+    stamp.className = "version-stamp";
+    stamp.textContent = formatStamp(snap.date);
+    item.appendChild(stamp);
+
+    item.addEventListener("click", () => void restoreSnapshot(snap));
+    versionsPopover.appendChild(item);
+  }
+}
+
+async function openVersionsPopover(): Promise<void> {
+  if (!activeFile || !dirHandle) return;
+  versionsPopover.innerHTML = '<div class="version-empty">Loading…</div>';
+  versionsPopover.hidden = false;
+  try {
+    const snaps = await listSnapshots(dirHandle, activeFile.path);
+    renderVersions(snaps);
+  } catch (err) {
+    console.error(err);
+    versionsPopover.innerHTML = '<div class="version-empty">Could not load</div>';
+  }
+}
+
+async function restoreSnapshot(snap: SnapshotInfo): Promise<void> {
+  if (!activeFile || !dirHandle) return;
+  const ok = window.confirm(
+    `Vervangen door versie van ${formatStamp(snap.date)}?\n\nHuidige inhoud wordt eerst als snapshot bewaard.`,
+  );
+  if (!ok) return;
+  closeVersionsPopover();
+  try {
+    const currentContent = editor.state.doc.toString();
+    if (currentContent !== lastSnapshotContent) {
+      await writeSnapshot(dirHandle, activeFile.path, currentContent);
+      await pruneSnapshots(dirHandle, activeFile.path, SNAPSHOT_MAX);
+    }
+    const restored = await readSnapshot(dirHandle, activeFile.path, snap.name);
+    suppressChange = true;
+    setEditorContent(editor, restored);
+    suppressChange = false;
+    lastSnapshotContent = restored;
+    updateWordCount(restored);
+    await saveActive(restored);
+    setSaveStatus("saved", `Restored ${formatStamp(snap.date)}`);
+    window.setTimeout(() => setSaveStatus("saved"), 2000);
+  } catch (err) {
+    console.error(err);
+    window.alert(`Restore mislukt: ${(err as Error).message}`);
+  }
+}
+
+versionsBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (versionsPopover.hidden) {
+    void openVersionsPopover();
+  } else {
+    closeVersionsPopover();
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (versionsPopover.hidden) return;
+  const target = e.target as Node;
+  if (!versionsPopover.contains(target) && !versionsBtn.contains(target)) {
+    closeVersionsPopover();
+  }
+});
+
 openFolderBtn.addEventListener("click", () => void handleOpenFolder());
 newFileBtn.addEventListener("click", () => void handleNewFile());
 refreshBtn.addEventListener("click", () => void refreshTree());
@@ -337,6 +508,11 @@ window.addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === "\\") {
     e.preventDefault();
     toggleSidebar();
+  } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+    e.preventDefault();
+    void takeSnapshot(true);
+  } else if (e.key === "Escape" && !versionsPopover.hidden) {
+    closeVersionsPopover();
   }
 });
 

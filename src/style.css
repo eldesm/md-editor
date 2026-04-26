@@ -404,15 +404,92 @@ button {
 
 #statusbar {
   height: 24px;
-  padding: 0 16px;
+  padding: 0 12px 0 16px;
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 14px;
   font-size: 11px;
   color: var(--fg-faint);
   border-top: 1px solid var(--border);
   background: var(--bg);
   flex-shrink: 0;
+}
+
+#versions-wrapper {
+  position: relative;
+}
+
+#versions-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 2px 6px;
+  border-radius: var(--radius-s);
+  color: var(--fg-muted);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+#versions-btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+#versions-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#versions-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-m);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  z-index: 100;
+  font-size: 12px;
+  color: var(--fg);
+}
+
+.version-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.version-item:hover {
+  background: var(--hover);
+}
+
+.version-item .version-relative {
+  flex: 1;
+}
+
+.version-item .version-stamp {
+  color: var(--fg-faint);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.version-empty {
+  padding: 10px 12px;
+  color: var(--fg-faint);
+  text-align: center;
 }
 
 /* ─── CodeMirror ──────────────────────────────────────────────── */
@@ -671,65 +748,6 @@ button {
 .cm-md-list-mark {
   color: var(--fg-muted);
   font-weight: 500;
-}
-
-.cm-md-bullet-dot {
-  display: inline-block;
-  width: 0.42em;
-  height: 0.42em;
-  border-radius: 50%;
-  background: var(--fg-muted);
-  vertical-align: 0.18em;
-  margin-right: 0.15em;
-}
-
-/* Vertical guide lines for nested list items.
-   Each .cm-md-list-dN class draws (N-1) vertical lines at the columns
-   where each ancestor list item's bullet sits. Deeper depth class wins
-   via cascade order, so nested lines also get their parent guides. */
-[class*="cm-md-list-d"] {
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-}
-
-.cm-md-list-d2 {
-  background-image: linear-gradient(
-    to right,
-    transparent 0.5ch,
-    var(--fg-faint) 0.5ch,
-    var(--fg-faint) calc(0.5ch + 1px),
-    transparent calc(0.5ch + 1px)
-  );
-}
-
-.cm-md-list-d3 {
-  background-image:
-    linear-gradient(to right, transparent 0.5ch, var(--fg-faint) 0.5ch, var(--fg-faint) calc(0.5ch + 1px), transparent calc(0.5ch + 1px)),
-    linear-gradient(to right, transparent 2.5ch, var(--fg-faint) 2.5ch, var(--fg-faint) calc(2.5ch + 1px), transparent calc(2.5ch + 1px));
-}
-
-.cm-md-list-d4 {
-  background-image:
-    linear-gradient(to right, transparent 0.5ch, var(--fg-faint) 0.5ch, var(--fg-faint) calc(0.5ch + 1px), transparent calc(0.5ch + 1px)),
-    linear-gradient(to right, transparent 2.5ch, var(--fg-faint) 2.5ch, var(--fg-faint) calc(2.5ch + 1px), transparent calc(2.5ch + 1px)),
-    linear-gradient(to right, transparent 4.5ch, var(--fg-faint) 4.5ch, var(--fg-faint) calc(4.5ch + 1px), transparent calc(4.5ch + 1px));
-}
-
-.cm-md-list-d5 {
-  background-image:
-    linear-gradient(to right, transparent 0.5ch, var(--fg-faint) 0.5ch, var(--fg-faint) calc(0.5ch + 1px), transparent calc(0.5ch + 1px)),
-    linear-gradient(to right, transparent 2.5ch, var(--fg-faint) 2.5ch, var(--fg-faint) calc(2.5ch + 1px), transparent calc(2.5ch + 1px)),
-    linear-gradient(to right, transparent 4.5ch, var(--fg-faint) 4.5ch, var(--fg-faint) calc(4.5ch + 1px), transparent calc(4.5ch + 1px)),
-    linear-gradient(to right, transparent 6.5ch, var(--fg-faint) 6.5ch, var(--fg-faint) calc(6.5ch + 1px), transparent calc(6.5ch + 1px));
-}
-
-.cm-md-list-d6 {
-  background-image:
-    linear-gradient(to right, transparent 0.5ch, var(--fg-faint) 0.5ch, var(--fg-faint) calc(0.5ch + 1px), transparent calc(0.5ch + 1px)),
-    linear-gradient(to right, transparent 2.5ch, var(--fg-faint) 2.5ch, var(--fg-faint) calc(2.5ch + 1px), transparent calc(2.5ch + 1px)),
-    linear-gradient(to right, transparent 4.5ch, var(--fg-faint) 4.5ch, var(--fg-faint) calc(4.5ch + 1px), transparent calc(4.5ch + 1px)),
-    linear-gradient(to right, transparent 6.5ch, var(--fg-faint) 6.5ch, var(--fg-faint) calc(6.5ch + 1px), transparent calc(6.5ch + 1px)),
-    linear-gradient(to right, transparent 8.5ch, var(--fg-faint) 8.5ch, var(--fg-faint) calc(8.5ch + 1px), transparent calc(8.5ch + 1px));
 }
 
 /* Task list checkboxes */
