@@ -28,6 +28,36 @@ export class FileTree {
     this.render();
   }
 
+  revealFile(filePath: string): void {
+    this.expandToFile(filePath);
+    const row = this.opts.container.querySelector<HTMLElement>(
+      `[data-path="${CSS.escape(filePath)}"]`,
+    );
+    if (row) row.scrollIntoView({ block: "nearest" });
+  }
+
+  collapseAll(): void {
+    this.expanded.clear();
+    this.render();
+  }
+
+  expandAll(): void {
+    const collect = (nodes: TreeNode[]): void => {
+      for (const n of nodes) {
+        if (n.kind === "folder") {
+          this.expanded.add(n.path);
+          collect(n.children);
+        }
+      }
+    };
+    collect(this.nodes);
+    this.render();
+  }
+
+  hasAnyExpanded(): boolean {
+    return this.expanded.size > 0;
+  }
+
   refresh(): void {
     this.render();
   }
@@ -97,6 +127,7 @@ export class FileTree {
     const row = document.createElement("div");
     row.className = "tree-row tree-file-row";
     row.style.paddingLeft = `${depth * 14 + 22}px`;
+    row.dataset.path = node.path;
     if (this.opts.isActive(node)) row.classList.add("active");
 
     const label = document.createElement("span");

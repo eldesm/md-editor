@@ -140,9 +140,11 @@ button {
   display: flex;
   gap: 2px;
   align-items: center;
+  justify-content: center;
 }
 
 .sidebar-toolbar button {
+  position: relative;
   background: transparent;
   border: none;
   padding: 6px;
@@ -164,32 +166,65 @@ button {
   cursor: not-allowed;
 }
 
-#folder-name {
-  padding: 6px 14px 8px;
+.sidebar-toolbar button:hover:not(:disabled)::after {
+  content: attr(title);
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--fg);
+  color: white;
+  padding: 3px 7px;
+  border-radius: var(--radius-s);
   font-size: 11px;
-  color: var(--fg-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-}
-
-#folder-name.clickable {
-  cursor: pointer;
-  color: var(--accent);
-  text-transform: none;
-  letter-spacing: normal;
-  font-weight: 500;
-  font-size: 12px;
-}
-
-#folder-name.clickable:hover {
-  text-decoration: underline;
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
 }
 
 #file-tree {
   flex: 1;
   overflow-y: auto;
-  padding: 0 8px 16px;
+  padding: 0 8px 8px;
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--border);
+  padding: 6px 8px;
+}
+
+#open-folder-btn {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  color: var(--fg-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+
+#open-folder-btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+#open-folder-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+#folder-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tree-empty {
@@ -436,6 +471,15 @@ button {
 
 .version-item:hover {
   background: var(--hover);
+}
+
+.version-item.active {
+  background: var(--accent);
+  color: white;
+}
+
+.version-item.active .version-stamp {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .version-item .version-relative {

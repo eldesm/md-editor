@@ -6,6 +6,7 @@ import {
   readFile,
   writeFile,
   createFile,
+  createFolder,
   renameFile,
   writeSnapshot,
   pruneSnapshots,
@@ -35,8 +36,10 @@ const appEl = document.getElementById("app") as HTMLDivElement;
 const toggleSidebarBtn = document.getElementById("toggle-sidebar-btn") as HTMLButtonElement;
 const openFolderBtn = document.getElementById("open-folder-btn") as HTMLButtonElement;
 const newFileBtn = document.getElementById("new-file-btn") as HTMLButtonElement;
-const refreshBtn = document.getElementById("refresh-btn") as HTMLButtonElement;
-const folderNameEl = document.getElementById("folder-name") as HTMLDivElement;
+const newFolderBtn = document.getElementById("new-folder-btn") as HTMLButtonElement;
+const revealBtn = document.getElementById("reveal-btn") as HTMLButtonElement;
+const collapseToggleBtn = document.getElementById("collapse-toggle-btn") as HTMLButtonElement;
+const folderNameEl = document.getElementById("folder-name") as HTMLSpanElement;
 const fileTreeEl = document.getElementById("file-tree") as HTMLDivElement;
 const breadcrumbsEl = document.getElementById("breadcrumbs") as HTMLElement;
 const saveStatusEl = document.getElementById("save-status") as HTMLSpanElement;
@@ -54,7 +57,8 @@ let snapshotTimer: number | null = null;
 let lastSnapshotContent = "";
 let charsSinceSnapshot = 0;
 let suppressChange = false;
-let reconnectController: AbortController | null = null;
+let restoreInFlight = false;
+let pendingReconnect: (() => Promise<void>) | null = null;
 
 const editor = createEditor(editorEl, handleEditorChange);
 
@@ -161,6 +165,7 @@ async function openFile(file: FileNode): Promise<void> {
   setSaveStatus("saved");
   versionsBtn.disabled = false;
   exportPdfBtn.disabled = false;
+  revealBtn.disabled = false;
   fileTree.expandToFile(file.path);
   fileTree.refresh();
   editor.focus();
@@ -288,14 +293,13 @@ async function applyOpenedFolder(
   handle: FileSystemDirectoryHandle,
   options: { restoreLastFile: boolean },
 ): Promise<void> {
-  reconnectController?.abort();
-  reconnectController = null;
+  pendingReconnect = null;
   dirHandle = handle;
   folderNameEl.textContent = handle.name;
-  folderNameEl.classList.remove("clickable");
   folderNameEl.style.color = "";
   newFileBtn.disabled = false;
-  refreshBtn.disabled = false;
+  newFolderBtn.disabled = false;
+  collapseToggleBtn.disabled = false;
   clearSnapshotTimer();
   closeVersionsPopover();
   activeFile = null;
@@ -306,6 +310,7 @@ async function applyOpenedFolder(
   suppressChange = false;
   versionsBtn.disabled = true;
   exportPdfBtn.disabled = true;
+  revealBtn.disabled = true;
   renderBreadcrumbs();
   updateWordCount("");
   setSaveStatus("idle", "");
@@ -353,9 +358,7 @@ async function tryRestoreLastFolder(): Promise<void> {
   }
 
   folderNameEl.textContent = `Klik om "${saved.name}" te openen`;
-  folderNameEl.classList.add("clickable");
-  reconnectController = new AbortController();
-  const reconnect = async () => {
+  pendingReconnect = async () => {
     try {
       const result = await saved.requestPermission(opts);
       if (result === "granted") {
@@ -364,15 +367,10 @@ async function tryRestoreLastFolder(): Promise<void> {
     } catch (err) {
       console.error(err);
       await storage.del(STORAGE_KEY_DIR);
-      folderNameEl.classList.remove("clickable");
       folderNameEl.textContent = "No folder open";
-      reconnectController?.abort();
-      reconnectController = null;
+      pendingReconnect = null;
     }
   };
-  folderNameEl.addEventListener("click", reconnect, {
-    signal: reconnectController.signal,
-  });
 }
 
 async function handleNewFile(): Promise<void> {
@@ -388,6 +386,41 @@ async function handleNewFile(): Promise<void> {
   } catch (err) {
     console.error(err);
     window.alert(`Could not create file: ${(err as Error).message}`);
+  }
+}
+
+async function handleNewFolder(): Promise<void> {
+  if (!dirHandle) return;
+  const name = window.prompt("New folder name");
+  if (!name) return;
+  const trimmed = name.trim();
+  if (trimmed === "" || INVALID_NAME_RE.test(trimmed)) {
+    window.alert('Foldernaam mag geen / \\ : * ? " < > | bevatten.');
+    return;
+  }
+  try {
+    await createFolder(dirHandle, trimmed);
+    await refreshTree();
+  } catch (err) {
+    console.error(err);
+    window.alert(`Could not create folder: ${(err as Error).message}`);
+  }
+}
+
+function handleReveal(): void {
+  if (!activeFile) return;
+  fileTree.revealFile(activeFile.path);
+}
+
+function handleCollapseToggle(): void {
+  if (fileTree.hasAnyExpanded()) {
+    fileTree.collapseAll();
+    collapseToggleBtn.title = "Expand all";
+    collapseToggleBtn.setAttribute("aria-label", "Expand all");
+  } else {
+    fileTree.expandAll();
+    collapseToggleBtn.title = "Collapse all";
+    collapseToggleBtn.setAttribute("aria-label", "Collapse all");
   }
 }
 
@@ -438,7 +471,7 @@ function setVersionsMessage(text: string): void {
   versionsPopover.replaceChildren(msg);
 }
 
-function renderVersions(snaps: SnapshotInfo[]): void {
+function renderVersions(snaps: SnapshotInfo[], activeName?: string): void {
   if (snaps.length === 0) {
     setVersionsMessage("No versions yet");
     return;
@@ -446,7 +479,7 @@ function renderVersions(snaps: SnapshotInfo[]): void {
   versionsPopover.replaceChildren();
   for (const snap of snaps) {
     const item = document.createElement("div");
-    item.className = "version-item";
+    item.className = snap.name === activeName ? "version-item active" : "version-item";
 
     const rel = document.createElement("span");
     rel.className = "version-relative";
@@ -477,12 +510,13 @@ async function openVersionsPopover(): Promise<void> {
 }
 
 async function restoreSnapshot(snap: SnapshotInfo): Promise<void> {
-  if (!activeFile || !dirHandle) return;
-  const ok = window.confirm(
-    `Vervangen door versie van ${formatStamp(snap.date)}?\n\nHuidige inhoud wordt eerst als snapshot bewaard.`,
-  );
-  if (!ok) return;
-  closeVersionsPopover();
+  if (restoreInFlight || !activeFile || !dirHandle) return;
+  restoreInFlight = true;
+  if (saveTimer !== null) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  clearSnapshotTimer();
   try {
     const currentContent = editor.state.doc.toString();
     if (currentContent !== lastSnapshotContent) {
@@ -499,9 +533,15 @@ async function restoreSnapshot(snap: SnapshotInfo): Promise<void> {
     await saveActive(restored);
     setSaveStatus("saved", `Restored ${formatStamp(snap.date)}`);
     window.setTimeout(() => setSaveStatus("saved"), STATUS_FLASH_MS);
+    if (!versionsPopover.hidden) {
+      const snaps = await listSnapshots(dirHandle, activeFile.path);
+      renderVersions(snaps, snap.name);
+    }
   } catch (err) {
     console.error(err);
     window.alert(`Restore mislukt: ${(err as Error).message}`);
+  } finally {
+    restoreInFlight = false;
   }
 }
 
@@ -522,9 +562,19 @@ document.addEventListener("click", (e) => {
   }
 });
 
-openFolderBtn.addEventListener("click", () => void handleOpenFolder());
+openFolderBtn.addEventListener("click", () => {
+  if (pendingReconnect) {
+    const fn = pendingReconnect;
+    pendingReconnect = null;
+    void fn();
+  } else {
+    void handleOpenFolder();
+  }
+});
 newFileBtn.addEventListener("click", () => void handleNewFile());
-refreshBtn.addEventListener("click", () => void refreshTree());
+newFolderBtn.addEventListener("click", () => void handleNewFolder());
+revealBtn.addEventListener("click", handleReveal);
+collapseToggleBtn.addEventListener("click", handleCollapseToggle);
 toggleSidebarBtn.addEventListener("click", toggleSidebar);
 exportPdfBtn.addEventListener("click", () => {
   if (!activeFile) return;
@@ -557,3 +607,4 @@ window.addEventListener("beforeunload", (e) => {
 renderBreadcrumbs();
 updateWordCount("");
 void tryRestoreLastFolder();
+

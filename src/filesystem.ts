@@ -84,6 +84,13 @@ export async function createFile(
   return await dir.getFileHandle(name, { create: true });
 }
 
+export async function createFolder(
+  dir: FileSystemDirectoryHandle,
+  name: string,
+): Promise<FileSystemDirectoryHandle> {
+  return await dir.getDirectoryHandle(name, { create: true });
+}
+
 async function getParentDir(
   root: FileSystemDirectoryHandle,
   filePath: string,

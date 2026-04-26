@@ -9,27 +9,40 @@
     <div id="app">
       <aside id="sidebar">
         <div class="sidebar-toolbar">
-          <button id="open-folder-btn" type="button" title="Open folder" aria-label="Open folder">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 4a1 1 0 0 1 1-1h3.5l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-            </svg>
-          </button>
-          <button id="new-file-btn" type="button" disabled title="New file" aria-label="New file">
+          <button id="new-file-btn" type="button" disabled title="New note" aria-label="New note">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M4 2h5l3 3v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
               <path d="M9 2v3h3" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
               <path d="M8 8v4M6 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
             </svg>
           </button>
-          <button id="refresh-btn" type="button" disabled title="Refresh" aria-label="Refresh">
+          <button id="new-folder-btn" type="button" disabled title="New folder" aria-label="New folder">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8a5 5 0 0 1 8.5-3.5L13 6M13 3v3h-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M13 8a5 5 0 0 1-8.5 3.5L3 10M3 13v-3h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 4a1 1 0 0 1 1-1h3.5l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M8 7v4M6 9h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button id="reveal-btn" type="button" disabled title="Reveal current file" aria-label="Reveal current file">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.3"/>
+              <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+            </svg>
+          </button>
+          <button id="collapse-toggle-btn" type="button" disabled title="Collapse all" aria-label="Collapse all">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M5 5l3 3 3-3M5 11l3-3 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
         </div>
-        <div id="folder-name">No folder open</div>
         <div id="file-tree"></div>
+        <div class="sidebar-footer">
+          <button id="open-folder-btn" type="button" title="Open folder" aria-label="Open folder">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M2 4a1 1 0 0 1 1-1h3.5l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+            </svg>
+            <span id="folder-name">No folder open</span>
+          </button>
+        </div>
       </aside>
       <main id="main">
         <header id="topbar">
