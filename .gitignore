@@ -2,6 +2,7 @@ node_modules/
 dist/
 .DS_Store
 *.log
+.claude/
 
 # Reference plugin – not part of this project
 obsidian-outliner-main/

@@ -1,4 +1,4 @@
-import type { FileNode, TreeNode } from "./filesystem";
+import { stripMdExt, type FileNode, type TreeNode } from "./filesystem";
 
 export type FileTreeOptions = {
   container: HTMLElement;
@@ -33,7 +33,7 @@ export class FileTree {
   }
 
   private render(): void {
-    this.opts.container.innerHTML = "";
+    this.opts.container.replaceChildren();
     if (this.nodes.length === 0) {
       const empty = document.createElement("div");
       empty.className = "tree-empty";
@@ -101,7 +101,7 @@ export class FileTree {
 
     const label = document.createElement("span");
     label.className = "tree-label";
-    label.textContent = node.name.replace(/\.(md|markdown)$/i, "");
+    label.textContent = stripMdExt(node.name);
     row.appendChild(label);
 
     row.addEventListener("click", () => this.opts.onFileClick(node));

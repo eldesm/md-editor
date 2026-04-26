@@ -18,6 +18,14 @@ export type TreeNode = FileNode | FolderNode;
 const MARKDOWN_RE = /\.(md|markdown)$/i;
 const BACKUPS_DIR = "_backups";
 
+export function stripMdExt(name: string): string {
+  return name.replace(MARKDOWN_RE, "");
+}
+
+export function ensureMdExt(name: string): string {
+  return MARKDOWN_RE.test(name) ? name : `${name}.md`;
+}
+
 export async function pickDirectory(): Promise<FileSystemDirectoryHandle> {
   return await window.showDirectoryPicker({ mode: "readwrite" });
 }
@@ -98,7 +106,21 @@ function snapshotTimestamp(date: Date): string {
   );
 }
 
-const SNAPSHOT_RE = /^\.?(.+)\.bak\.(\d{8}-\d{6})$/;
+export type SnapshotKind = "char" | "idle" | "manual";
+
+const KIND_TO_TAG: Record<SnapshotKind, string> = {
+  char: "c",
+  idle: "i",
+  manual: "m",
+};
+
+const TAG_TO_KIND: Record<string, SnapshotKind> = {
+  c: "char",
+  i: "idle",
+  m: "manual",
+};
+
+const SNAPSHOT_RE = /^\.?(.+)\.bak\.(\d{8}-\d{6})(?:\.([cim]))?$/;
 
 async function getBackupsDir(
   parent: FileSystemDirectoryHandle,
@@ -116,17 +138,31 @@ export async function writeSnapshot(
   root: FileSystemDirectoryHandle,
   filePath: string,
   content: string,
+  kind: SnapshotKind,
 ): Promise<string> {
   const { parent, baseName } = await getParentDir(root, filePath);
   const backups = await getBackupsDir(parent, true);
   if (!backups) throw new Error("Could not create backups folder");
   const stamp = snapshotTimestamp(new Date());
-  const snapshotName = `${baseName}.bak.${stamp}`;
+  const snapshotName = `${baseName}.bak.${stamp}.${KIND_TO_TAG[kind]}`;
   const handle = await backups.getFileHandle(snapshotName, { create: true });
   const writable = await handle.createWritable();
   await writable.write(content);
   await writable.close();
   return snapshotName;
+}
+
+async function* iterateSnapshotEntries(
+  backups: FileSystemDirectoryHandle,
+  baseName: string,
+): AsyncGenerator<{ name: string; stamp: string; kind: SnapshotKind }> {
+  for await (const [name] of backups.entries()) {
+    const m = SNAPSHOT_RE.exec(name);
+    if (m && m[1] === baseName) {
+      const kind = m[3] ? TAG_TO_KIND[m[3]] : "manual";
+      yield { name, stamp: m[2], kind };
+    }
+  }
 }
 
 export async function hasSnapshots(
@@ -136,14 +172,11 @@ export async function hasSnapshots(
   const { parent, baseName } = await getParentDir(root, filePath);
   const backups = await getBackupsDir(parent, false);
   if (!backups) return false;
-  for await (const [name] of backups.entries()) {
-    const m = SNAPSHOT_RE.exec(name);
-    if (m && m[1] === baseName) return true;
-  }
+  for await (const _ of iterateSnapshotEntries(backups, baseName)) return true;
   return false;
 }
 
-export type SnapshotInfo = { name: string; date: Date };
+export type SnapshotInfo = { name: string; date: Date; kind: SnapshotKind };
 
 function parseSnapshotStamp(stamp: string): Date {
   const m = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/.exec(stamp);
@@ -159,11 +192,8 @@ export async function listSnapshots(
   const backups = await getBackupsDir(parent, false);
   if (!backups) return [];
   const out: SnapshotInfo[] = [];
-  for await (const [name] of backups.entries()) {
-    const m = SNAPSHOT_RE.exec(name);
-    if (m && m[1] === baseName) {
-      out.push({ name, date: parseSnapshotStamp(m[2]) });
-    }
+  for await (const { name, stamp, kind } of iterateSnapshotEntries(backups, baseName)) {
+    out.push({ name, date: parseSnapshotStamp(stamp), kind });
   }
   out.sort((a, b) => b.date.getTime() - a.date.getTime());
   return out;
@@ -185,20 +215,20 @@ export async function readSnapshot(
 export async function pruneSnapshots(
   root: FileSystemDirectoryHandle,
   filePath: string,
+  kind: SnapshotKind,
   maxKeep: number,
 ): Promise<void> {
   const { parent, baseName } = await getParentDir(root, filePath);
   const backups = await getBackupsDir(parent, false);
   if (!backups) return;
-  const matches: string[] = [];
-  for await (const [name] of backups.entries()) {
-    const m = SNAPSHOT_RE.exec(name);
-    if (m && m[1] === baseName) matches.push(name);
+  const matches: { name: string; stamp: string }[] = [];
+  for await (const entry of iterateSnapshotEntries(backups, baseName)) {
+    if (entry.kind === kind) matches.push({ name: entry.name, stamp: entry.stamp });
   }
   if (matches.length <= maxKeep) return;
-  matches.sort();
+  matches.sort((a, b) => a.stamp.localeCompare(b.stamp));
   const toRemove = matches.slice(0, matches.length - maxKeep);
-  for (const name of toRemove) {
+  for (const { name } of toRemove) {
     await backups.removeEntry(name);
   }
 }

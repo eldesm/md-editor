@@ -328,13 +328,12 @@ function buildDecorations(view: EditorView): DecorationSet {
 
         // Links: replace whole [text](url) with widget when not active
         if (node.name === "Link" && !onActive) {
-          const text = extractLinkText(view, node.from, node.to);
-          const url = extractLinkUrl(view, node.from, node.to);
-          if (text && url) {
+          const link = parseLink(view, node.from, node.to);
+          if (link) {
             pending.push({
               from: node.from,
               to: node.to,
-              deco: Decoration.replace({ widget: new LinkWidget(text, url) }),
+              deco: Decoration.replace({ widget: new LinkWidget(link.text, link.url) }),
             });
           }
           return;
@@ -349,16 +348,15 @@ function buildDecorations(view: EditorView): DecorationSet {
   return builder.finish();
 }
 
-function extractLinkText(view: EditorView, from: number, to: number): string | null {
-  const text = view.state.sliceDoc(from, to);
-  const match = /^\[([^\]]*)\]\(([^)]+)\)$/.exec(text);
-  return match ? match[1] : null;
-}
+const LINK_RE = /^\[([^\]]*)\]\(([^)]+)\)$/;
 
-function extractLinkUrl(view: EditorView, from: number, to: number): string | null {
-  const text = view.state.sliceDoc(from, to);
-  const match = /^\[([^\]]*)\]\(([^)]+)\)$/.exec(text);
-  return match ? match[2] : null;
+function parseLink(
+  view: EditorView,
+  from: number,
+  to: number,
+): { text: string; url: string } | null {
+  const m = LINK_RE.exec(view.state.sliceDoc(from, to));
+  return m ? { text: m[1], url: m[2] } : null;
 }
 
 export const markdownLivePreview = ViewPlugin.fromClass(

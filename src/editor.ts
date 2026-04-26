@@ -6,12 +6,12 @@ import { indentOnInput, indentUnit, bracketMatching } from "@codemirror/language
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { markdownLivePreview } from "./live-preview";
 
-export type EditorChangeHandler = (content: string) => void;
+export type EditorChangeHandler = (content: string, charsChanged: number) => void;
 
 const proseTheme = EditorView.theme({
   "&": {
     fontFamily:
-      '"RijksSans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Ubuntu, sans-serif',
+      '"Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Ubuntu, sans-serif',
     fontSize: "17px",
   },
   ".cm-scroller": {
@@ -30,7 +30,11 @@ const proseTheme = EditorView.theme({
 export function createEditor(parent: HTMLElement, onChange: EditorChangeHandler): EditorView {
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
-      onChange(update.state.doc.toString());
+      let charsChanged = 0;
+      update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+        charsChanged += (toA - fromA) + inserted.length;
+      });
+      onChange(update.state.doc.toString(), charsChanged);
     }
   });
 

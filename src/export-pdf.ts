@@ -1,4 +1,5 @@
 import { marked } from "marked";
+import DOMPurify from "dompurify";
 
 const PRINT_STYLES = `
   @page { margin: 25mm 5mm; }
@@ -55,9 +56,9 @@ const PRINT_STYLES = `
   h4::before { content: counter(h1) "." counter(h2) "." counter(h3) "." counter(h4) "."; }
   h5::before { content: counter(h1) "." counter(h2) "." counter(h3) "." counter(h4) "." counter(h5) "."; }
   h6::before { content: counter(h1) "." counter(h2) "." counter(h3) "." counter(h4) "." counter(h5) "." counter(h6) "."; }
-  h1 { font-size: 2em; font-weight: 700; letter-spacing: -0.01em; color: var(--h1-color); }
+  h1 { font-size: 1.7em; font-weight: 700; letter-spacing: -0.01em; color: var(--h1-color); }
   h2 {
-    font-size: 1.45em; font-weight: 300; font-style: italic; color: var(--h2-color);
+    font-size: 1.45em; font-weight: 300; color: var(--h2-color);
     border-bottom: 2px solid var(--border); padding-bottom: 0.15em;
   }
   h3 { font-size: 1.2em; font-weight: 700; color: var(--h3-color); }
@@ -153,7 +154,8 @@ function collectDocumentStyles(): string {
 }
 
 export async function exportToPdf(markdown: string, title: string): Promise<void> {
-  const body = await marked.parse(markdown, { gfm: true, breaks: false });
+  const rawBody = await marked.parse(markdown, { gfm: true, breaks: false });
+  const body = DOMPurify.sanitize(rawBody);
   const docTitle = title || "Untitled";
   const baseStyles = collectDocumentStyles();
   const html = `<!doctype html>

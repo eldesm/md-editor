@@ -12,7 +12,10 @@ import {
   hasSnapshots,
   listSnapshots,
   readSnapshot,
+  stripMdExt,
+  ensureMdExt,
   type SnapshotInfo,
+  type SnapshotKind,
   type FileNode,
   type TreeNode,
 } from "./filesystem";
@@ -22,7 +25,9 @@ import { exportToPdf } from "./export-pdf";
 
 const SAVE_DEBOUNCE_MS = 400;
 const SNAPSHOT_IDLE_MS = 3 * 60 * 1000;
+const SNAPSHOT_CHAR_THRESHOLD = 500;
 const SNAPSHOT_MAX = 10;
+const STATUS_FLASH_MS = 1500;
 const STORAGE_KEY_DIR = "lastDir";
 const STORAGE_KEY_FILE = "lastFile";
 
@@ -47,7 +52,9 @@ let activeFile: FileNode | null = null;
 let saveTimer: number | null = null;
 let snapshotTimer: number | null = null;
 let lastSnapshotContent = "";
+let charsSinceSnapshot = 0;
 let suppressChange = false;
+let reconnectController: AbortController | null = null;
 
 const editor = createEditor(editorEl, handleEditorChange);
 
@@ -71,7 +78,7 @@ function setSaveStatus(state: "idle" | "saving" | "saved" | "error", text?: stri
 }
 
 function renderBreadcrumbs(): void {
-  breadcrumbsEl.innerHTML = "";
+  breadcrumbsEl.replaceChildren();
   if (!activeFile) {
     const span = document.createElement("span");
     span.className = "crumb";
@@ -80,7 +87,7 @@ function renderBreadcrumbs(): void {
     return;
   }
   const parts = activeFile.path.split("/");
-  parts[parts.length - 1] = parts[parts.length - 1].replace(/\.(md|markdown)$/i, "");
+  parts[parts.length - 1] = stripMdExt(parts[parts.length - 1]);
   parts.forEach((part, idx) => {
     const isLast = idx === parts.length - 1;
     const crumb = document.createElement("span");
@@ -110,7 +117,7 @@ function handleTitleKeydown(e: KeyboardEvent): void {
   } else if (e.key === "Escape") {
     e.preventDefault();
     if (activeFile) {
-      target.textContent = activeFile.name.replace(/\.(md|markdown)$/i, "");
+      target.textContent = stripMdExt(activeFile.name);
     }
     target.blur();
   }
@@ -145,6 +152,7 @@ async function openFile(file: FileNode): Promise<void> {
   activeFile = file;
   const content = await readFile(file.handle);
   lastSnapshotContent = content;
+  charsSinceSnapshot = 0;
   suppressChange = true;
   setEditorContent(editor, content);
   suppressChange = false;
@@ -161,7 +169,7 @@ async function openFile(file: FileNode): Promise<void> {
   if (dirHandle) {
     try {
       if (!(await hasSnapshots(dirHandle, file.path))) {
-        await writeSnapshot(dirHandle, file.path, content);
+        await writeSnapshot(dirHandle, file.path, content, "manual");
       }
     } catch (err) {
       console.error("Initial snapshot failed:", err);
@@ -174,7 +182,7 @@ const INVALID_NAME_RE = /[/\\:*?"<>|]/;
 async function commitTitleRename(target: HTMLElement): Promise<void> {
   if (!activeFile || !dirHandle) return;
   const raw = (target.textContent || "").trim();
-  const currentBase = activeFile.name.replace(/\.(md|markdown)$/i, "");
+  const currentBase = stripMdExt(activeFile.name);
   if (raw === "" || raw === currentBase) {
     target.textContent = currentBase;
     return;
@@ -191,7 +199,7 @@ async function commitTitleRename(target: HTMLElement): Promise<void> {
     await saveActive(editor.state.doc.toString());
   }
 
-  const newName = /\.(md|markdown)$/i.test(raw) ? raw : `${raw}.md`;
+  const newName = ensureMdExt(raw);
 
   try {
     const result = await renameFile(dirHandle, activeFile.path, newName);
@@ -224,21 +232,21 @@ async function saveActive(content: string): Promise<void> {
   }
 }
 
-async function takeSnapshot(manual: boolean): Promise<void> {
+async function takeSnapshot(kind: SnapshotKind): Promise<void> {
   if (!activeFile || !dirHandle) return;
   const content = editor.state.doc.toString();
-  if (!manual && content === lastSnapshotContent) return;
+  if (kind !== "manual" && content === lastSnapshotContent) return;
   try {
-    await writeSnapshot(dirHandle, activeFile.path, content);
-    await pruneSnapshots(dirHandle, activeFile.path, SNAPSHOT_MAX);
+    await writeSnapshot(dirHandle, activeFile.path, content, kind);
+    await pruneSnapshots(dirHandle, activeFile.path, kind, SNAPSHOT_MAX);
     lastSnapshotContent = content;
-    if (manual) {
+    if (kind === "manual") {
       setSaveStatus("saved", "Snapshot saved");
-      window.setTimeout(() => setSaveStatus("saved"), 1500);
+      window.setTimeout(() => setSaveStatus("saved"), STATUS_FLASH_MS);
     }
   } catch (err) {
     console.error("Snapshot failed:", err);
-    if (manual) {
+    if (kind === "manual") {
       setSaveStatus("error", "Snapshot failed");
     }
   }
@@ -248,7 +256,7 @@ function scheduleSnapshot(): void {
   if (snapshotTimer !== null) clearTimeout(snapshotTimer);
   snapshotTimer = window.setTimeout(() => {
     snapshotTimer = null;
-    void takeSnapshot(false);
+    void takeSnapshot("idle");
   }, SNAPSHOT_IDLE_MS);
 }
 
@@ -259,7 +267,7 @@ function clearSnapshotTimer(): void {
   }
 }
 
-function handleEditorChange(content: string): void {
+function handleEditorChange(content: string, charsChanged: number): void {
   updateWordCount(content);
   if (suppressChange || !activeFile) return;
   setSaveStatus("saving", "Editing…");
@@ -268,6 +276,11 @@ function handleEditorChange(content: string): void {
     saveTimer = null;
     void saveActive(content);
   }, SAVE_DEBOUNCE_MS);
+  charsSinceSnapshot += charsChanged;
+  if (charsSinceSnapshot >= SNAPSHOT_CHAR_THRESHOLD) {
+    charsSinceSnapshot = 0;
+    void takeSnapshot("char");
+  }
   scheduleSnapshot();
 }
 
@@ -275,6 +288,8 @@ async function applyOpenedFolder(
   handle: FileSystemDirectoryHandle,
   options: { restoreLastFile: boolean },
 ): Promise<void> {
+  reconnectController?.abort();
+  reconnectController = null;
   dirHandle = handle;
   folderNameEl.textContent = handle.name;
   folderNameEl.classList.remove("clickable");
@@ -285,6 +300,7 @@ async function applyOpenedFolder(
   closeVersionsPopover();
   activeFile = null;
   lastSnapshotContent = "";
+  charsSinceSnapshot = 0;
   suppressChange = true;
   setEditorContent(editor, "");
   suppressChange = false;
@@ -338,11 +354,11 @@ async function tryRestoreLastFolder(): Promise<void> {
 
   folderNameEl.textContent = `Klik om "${saved.name}" te openen`;
   folderNameEl.classList.add("clickable");
+  reconnectController = new AbortController();
   const reconnect = async () => {
     try {
       const result = await saved.requestPermission(opts);
       if (result === "granted") {
-        folderNameEl.removeEventListener("click", reconnect);
         await applyOpenedFolder(saved, { restoreLastFile: true });
       }
     } catch (err) {
@@ -350,17 +366,20 @@ async function tryRestoreLastFolder(): Promise<void> {
       await storage.del(STORAGE_KEY_DIR);
       folderNameEl.classList.remove("clickable");
       folderNameEl.textContent = "No folder open";
-      folderNameEl.removeEventListener("click", reconnect);
+      reconnectController?.abort();
+      reconnectController = null;
     }
   };
-  folderNameEl.addEventListener("click", reconnect);
+  folderNameEl.addEventListener("click", reconnect, {
+    signal: reconnectController.signal,
+  });
 }
 
 async function handleNewFile(): Promise<void> {
   if (!dirHandle) return;
   const name = window.prompt("New file name", "untitled.md");
   if (!name) return;
-  const finalName = /\.(md|markdown)$/i.test(name) ? name : `${name}.md`;
+  const finalName = ensureMdExt(name);
   try {
     await createFile(dirHandle, finalName);
     await refreshTree();
@@ -409,18 +428,22 @@ function formatStamp(date: Date): string {
 
 function closeVersionsPopover(): void {
   versionsPopover.hidden = true;
-  versionsPopover.innerHTML = "";
+  versionsPopover.replaceChildren();
+}
+
+function setVersionsMessage(text: string): void {
+  const msg = document.createElement("div");
+  msg.className = "version-empty";
+  msg.textContent = text;
+  versionsPopover.replaceChildren(msg);
 }
 
 function renderVersions(snaps: SnapshotInfo[]): void {
-  versionsPopover.innerHTML = "";
   if (snaps.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "version-empty";
-    empty.textContent = "No versions yet";
-    versionsPopover.appendChild(empty);
+    setVersionsMessage("No versions yet");
     return;
   }
+  versionsPopover.replaceChildren();
   for (const snap of snaps) {
     const item = document.createElement("div");
     item.className = "version-item";
@@ -442,14 +465,14 @@ function renderVersions(snaps: SnapshotInfo[]): void {
 
 async function openVersionsPopover(): Promise<void> {
   if (!activeFile || !dirHandle) return;
-  versionsPopover.innerHTML = '<div class="version-empty">Loading…</div>';
+  setVersionsMessage("Loading…");
   versionsPopover.hidden = false;
   try {
     const snaps = await listSnapshots(dirHandle, activeFile.path);
     renderVersions(snaps);
   } catch (err) {
     console.error(err);
-    versionsPopover.innerHTML = '<div class="version-empty">Could not load</div>';
+    setVersionsMessage("Could not load");
   }
 }
 
@@ -463,18 +486,19 @@ async function restoreSnapshot(snap: SnapshotInfo): Promise<void> {
   try {
     const currentContent = editor.state.doc.toString();
     if (currentContent !== lastSnapshotContent) {
-      await writeSnapshot(dirHandle, activeFile.path, currentContent);
-      await pruneSnapshots(dirHandle, activeFile.path, SNAPSHOT_MAX);
+      await writeSnapshot(dirHandle, activeFile.path, currentContent, "manual");
+      await pruneSnapshots(dirHandle, activeFile.path, "manual", SNAPSHOT_MAX);
     }
     const restored = await readSnapshot(dirHandle, activeFile.path, snap.name);
     suppressChange = true;
     setEditorContent(editor, restored);
     suppressChange = false;
     lastSnapshotContent = restored;
+    charsSinceSnapshot = 0;
     updateWordCount(restored);
     await saveActive(restored);
     setSaveStatus("saved", `Restored ${formatStamp(snap.date)}`);
-    window.setTimeout(() => setSaveStatus("saved"), 2000);
+    window.setTimeout(() => setSaveStatus("saved"), STATUS_FLASH_MS);
   } catch (err) {
     console.error(err);
     window.alert(`Restore mislukt: ${(err as Error).message}`);
@@ -504,7 +528,7 @@ refreshBtn.addEventListener("click", () => void refreshTree());
 toggleSidebarBtn.addEventListener("click", toggleSidebar);
 exportPdfBtn.addEventListener("click", () => {
   if (!activeFile) return;
-  const title = activeFile.name.replace(/\.(md|markdown)$/i, "");
+  const title = stripMdExt(activeFile.name);
   void exportToPdf(editor.state.doc.toString(), title).catch((err) => {
     console.error(err);
     window.alert(`Export mislukt: ${(err as Error).message}`);
@@ -517,7 +541,7 @@ window.addEventListener("keydown", (e) => {
     toggleSidebar();
   } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
     e.preventDefault();
-    void takeSnapshot(true);
+    void takeSnapshot("manual");
   } else if (e.key === "Escape" && !versionsPopover.hidden) {
     closeVersionsPopover();
   }
