@@ -258,6 +258,21 @@ button {
   font-weight: 500;
 }
 
+.tree-row.dragging {
+  opacity: 0.5;
+}
+
+.tree-row.drag-over {
+  background: var(--accent-soft);
+  outline: 1.5px solid var(--accent);
+  outline-offset: -1.5px;
+}
+
+#file-tree.drag-over-root {
+  background: var(--accent-soft);
+  border-radius: var(--radius-s);
+}
+
 .tree-chevron {
   display: inline-flex;
   align-items: center;
@@ -496,6 +511,46 @@ button {
   padding: 10px 12px;
   color: var(--fg-faint);
   text-align: center;
+}
+
+/* ─── Context menu ────────────────────────────────────────────── */
+
+.context-menu {
+  position: fixed;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-m);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  padding: 4px;
+  z-index: 200;
+  min-width: 140px;
+  font-size: 12px;
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-s);
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.context-menu-item:hover {
+  background: var(--hover);
+}
+
+.context-menu-item.danger {
+  color: var(--red);
+}
+
+.context-menu-item.danger:hover {
+  background: rgba(213, 43, 30, 0.1);
 }
 
 /* ─── CodeMirror ──────────────────────────────────────────────── */

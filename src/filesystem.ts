@@ -281,3 +281,181 @@ export async function renameFile(
   const newPath = parts.length ? `${parts.join("/")}/${newName}` : newName;
   return { handle: newHandle, path: newPath };
 }
+
+async function entryExists(
+  dir: FileSystemDirectoryHandle,
+  name: string,
+): Promise<boolean> {
+  try {
+    await dir.getFileHandle(name);
+    return true;
+  } catch (err) {
+    if ((err as DOMException).name !== "NotFoundError") throw err;
+  }
+  try {
+    await dir.getDirectoryHandle(name);
+    return true;
+  } catch (err) {
+    if ((err as DOMException).name !== "NotFoundError") throw err;
+  }
+  return false;
+}
+
+async function getEntry(
+  dir: FileSystemDirectoryHandle,
+  name: string,
+): Promise<{ handle: FileSystemFileHandle | FileSystemDirectoryHandle; isFile: boolean }> {
+  try {
+    return { handle: await dir.getFileHandle(name), isFile: true };
+  } catch (err) {
+    if ((err as DOMException).name !== "NotFoundError") throw err;
+  }
+  return { handle: await dir.getDirectoryHandle(name), isFile: false };
+}
+
+async function copyDirectoryRecursive(
+  src: FileSystemDirectoryHandle,
+  dest: FileSystemDirectoryHandle,
+): Promise<void> {
+  for await (const [name, h] of src.entries()) {
+    if (h.kind === "file") {
+      const file = await (h as FileSystemFileHandle).getFile();
+      const newHandle = await dest.getFileHandle(name, { create: true });
+      const w = await newHandle.createWritable();
+      await w.write(file);
+      await w.close();
+    } else {
+      const newSub = await dest.getDirectoryHandle(name, { create: true });
+      await copyDirectoryRecursive(h as FileSystemDirectoryHandle, newSub);
+    }
+  }
+}
+
+function splitStemExt(name: string, isFile: boolean): { stem: string; ext: string } {
+  if (!isFile) return { stem: name, ext: "" };
+  const m = /^(.+)(\.[^.]+)$/.exec(name);
+  if (m) return { stem: m[1], ext: m[2] };
+  return { stem: name, ext: "" };
+}
+
+async function findUniqueName(
+  parent: FileSystemDirectoryHandle,
+  baseName: string,
+  isFile: boolean,
+): Promise<string> {
+  const { stem, ext } = splitStemExt(baseName, isFile);
+  let candidate = `${stem} (kopie)${ext}`;
+  let n = 2;
+  while (await entryExists(parent, candidate)) {
+    candidate = `${stem} (kopie ${n})${ext}`;
+    n++;
+  }
+  return candidate;
+}
+
+export async function duplicateEntry(
+  root: FileSystemDirectoryHandle,
+  path: string,
+): Promise<string> {
+  const { parent, baseName } = await getParentDir(root, path);
+  const { handle, isFile } = await getEntry(parent, baseName);
+  const newName = await findUniqueName(parent, baseName, isFile);
+  if (isFile) {
+    const file = await (handle as FileSystemFileHandle).getFile();
+    const newHandle = await parent.getFileHandle(newName, { create: true });
+    const w = await newHandle.createWritable();
+    await w.write(file);
+    await w.close();
+  } else {
+    const newDir = await parent.getDirectoryHandle(newName, { create: true });
+    await copyDirectoryRecursive(handle as FileSystemDirectoryHandle, newDir);
+  }
+  const parentPath = path.split("/").slice(0, -1).join("/");
+  return parentPath ? `${parentPath}/${newName}` : newName;
+}
+
+export async function renameEntry(
+  root: FileSystemDirectoryHandle,
+  path: string,
+  newName: string,
+): Promise<string> {
+  const { parent, baseName } = await getParentDir(root, path);
+  if (newName === baseName) return path;
+  if (await entryExists(parent, newName)) {
+    throw new Error(`"${newName}" bestaat al in deze folder`);
+  }
+  const { handle, isFile } = await getEntry(parent, baseName);
+  if (isFile) {
+    const file = await (handle as FileSystemFileHandle).getFile();
+    const newHandle = await parent.getFileHandle(newName, { create: true });
+    const w = await newHandle.createWritable();
+    await w.write(file);
+    await w.close();
+    await parent.removeEntry(baseName);
+  } else {
+    const newDir = await parent.getDirectoryHandle(newName, { create: true });
+    await copyDirectoryRecursive(handle as FileSystemDirectoryHandle, newDir);
+    await parent.removeEntry(baseName, { recursive: true });
+  }
+  const parentPath = path.split("/").slice(0, -1).join("/");
+  return parentPath ? `${parentPath}/${newName}` : newName;
+}
+
+export async function deleteEntry(
+  root: FileSystemDirectoryHandle,
+  path: string,
+): Promise<void> {
+  const { parent, baseName } = await getParentDir(root, path);
+  await parent.removeEntry(baseName, { recursive: true });
+}
+
+async function resolveFolderHandle(
+  root: FileSystemDirectoryHandle,
+  path: string,
+): Promise<FileSystemDirectoryHandle> {
+  if (!path) return root;
+  let current = root;
+  for (const segment of path.split("/")) {
+    current = await current.getDirectoryHandle(segment);
+  }
+  return current;
+}
+
+export async function moveEntry(
+  root: FileSystemDirectoryHandle,
+  srcPath: string,
+  destFolderPath: string,
+): Promise<string> {
+  const srcParts = srcPath.split("/");
+  const baseName = srcParts.pop();
+  if (!baseName) throw new Error("Invalid path");
+  const srcParentPath = srcParts.join("/");
+
+  if (srcParentPath === destFolderPath) return srcPath;
+  if (destFolderPath === srcPath || destFolderPath.startsWith(`${srcPath}/`)) {
+    throw new Error("Een map kan niet in zichzelf verplaatst worden");
+  }
+
+  const srcParent = await resolveFolderHandle(root, srcParentPath);
+  const destParent = await resolveFolderHandle(root, destFolderPath);
+
+  if (await entryExists(destParent, baseName)) {
+    throw new Error(`"${baseName}" bestaat al in de doelmap`);
+  }
+
+  const { handle, isFile } = await getEntry(srcParent, baseName);
+  if (isFile) {
+    const file = await (handle as FileSystemFileHandle).getFile();
+    const newHandle = await destParent.getFileHandle(baseName, { create: true });
+    const w = await newHandle.createWritable();
+    await w.write(file);
+    await w.close();
+    await srcParent.removeEntry(baseName);
+  } else {
+    const newDir = await destParent.getDirectoryHandle(baseName, { create: true });
+    await copyDirectoryRecursive(handle as FileSystemDirectoryHandle, newDir);
+    await srcParent.removeEntry(baseName, { recursive: true });
+  }
+
+  return destFolderPath ? `${destFolderPath}/${baseName}` : baseName;
+}

@@ -8,6 +8,10 @@ import {
   createFile,
   createFolder,
   renameFile,
+  renameEntry,
+  duplicateEntry,
+  deleteEntry,
+  moveEntry,
   writeSnapshot,
   pruneSnapshots,
   hasSnapshots,
@@ -66,6 +70,9 @@ const fileTree = new FileTree({
   container: fileTreeEl,
   onFileClick: (file) => void openFile(file),
   isActive: (file) => activeFile?.path === file.path,
+  onContextMenu: (node, event) => showContextMenu(node, event),
+  onDropMove: (sourcePath, destFolderPath) =>
+    void handleDropMove(sourcePath, destFolderPath),
 });
 
 function setSaveStatus(state: "idle" | "saving" | "saved" | "error", text?: string): void {
@@ -545,6 +552,184 @@ async function restoreSnapshot(snap: SnapshotInfo): Promise<void> {
   }
 }
 
+async function flushPendingSave(): Promise<void> {
+  if (saveTimer === null) return;
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  await saveActive(editor.state.doc.toString());
+}
+
+function clearActiveFileState(): void {
+  activeFile = null;
+  lastSnapshotContent = "";
+  charsSinceSnapshot = 0;
+  clearSnapshotTimer();
+  closeVersionsPopover();
+  suppressChange = true;
+  setEditorContent(editor, "");
+  suppressChange = false;
+  versionsBtn.disabled = true;
+  exportPdfBtn.disabled = true;
+  revealBtn.disabled = true;
+  renderBreadcrumbs();
+  updateWordCount("");
+  setSaveStatus("idle", "");
+}
+
+async function reattachActiveAfterPathChange(
+  oldPath: string,
+  newPath: string,
+): Promise<void> {
+  if (!activeFile) return;
+  let nextPath: string | null = null;
+  if (activeFile.path === oldPath) nextPath = newPath;
+  else if (activeFile.path.startsWith(`${oldPath}/`)) {
+    nextPath = newPath + activeFile.path.slice(oldPath.length);
+  }
+  if (!nextPath) return;
+  const updated = findFileByPath(tree, nextPath);
+  if (updated) {
+    activeFile = updated;
+    renderBreadcrumbs();
+    await storage.set(STORAGE_KEY_FILE, nextPath);
+  }
+}
+
+function closeContextMenu(): void {
+  document.querySelector(".context-menu")?.remove();
+}
+
+function showContextMenu(node: TreeNode, event: MouseEvent): void {
+  closeContextMenu();
+  const menu = document.createElement("div");
+  menu.className = "context-menu";
+  menu.style.left = `${event.clientX}px`;
+  menu.style.top = `${event.clientY}px`;
+
+  const items: { label: string; danger?: boolean; action: () => Promise<void> }[] = [
+    { label: "Duplicate", action: () => handleDuplicate(node) },
+    { label: "Rename", action: () => handleRename(node) },
+    { label: "Delete", danger: true, action: () => handleDelete(node) },
+  ];
+
+  for (const it of items) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = it.danger ? "context-menu-item danger" : "context-menu-item";
+    btn.textContent = it.label;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeContextMenu();
+      void it.action();
+    });
+    menu.appendChild(btn);
+  }
+
+  document.body.appendChild(menu);
+  const rect = menu.getBoundingClientRect();
+  if (rect.right > window.innerWidth) {
+    menu.style.left = `${window.innerWidth - rect.width - 4}px`;
+  }
+  if (rect.bottom > window.innerHeight) {
+    menu.style.top = `${window.innerHeight - rect.height - 4}px`;
+  }
+}
+
+async function handleDuplicate(node: TreeNode): Promise<void> {
+  if (!dirHandle) return;
+  try {
+    if (activeFile && (activeFile.path === node.path || activeFile.path.startsWith(`${node.path}/`))) {
+      await flushPendingSave();
+    }
+    await duplicateEntry(dirHandle, node.path);
+    await refreshTree();
+  } catch (err) {
+    console.error(err);
+    window.alert(`Dupliceren mislukt: ${(err as Error).message}`);
+  }
+}
+
+async function handleRename(node: TreeNode): Promise<void> {
+  if (!dirHandle) return;
+  const isFile = node.kind === "file";
+  const currentDisplay = isFile ? stripMdExt(node.name) : node.name;
+  const raw = window.prompt("Nieuwe naam", currentDisplay);
+  if (raw === null) return;
+  const trimmed = raw.trim();
+  if (!trimmed) return;
+  if (INVALID_NAME_RE.test(trimmed)) {
+    window.alert('Naam mag geen / \\ : * ? " < > | bevatten.');
+    return;
+  }
+  const newName = isFile ? ensureMdExt(trimmed) : trimmed;
+  if (newName === node.name) return;
+
+  const touchesActive =
+    activeFile && (activeFile.path === node.path || activeFile.path.startsWith(`${node.path}/`));
+  if (touchesActive) await flushPendingSave();
+
+  try {
+    const newPath = await renameEntry(dirHandle, node.path, newName);
+    await refreshTree();
+    await reattachActiveAfterPathChange(node.path, newPath);
+  } catch (err) {
+    console.error(err);
+    window.alert(`Hernoemen mislukt: ${(err as Error).message}`);
+  }
+}
+
+async function handleDelete(node: TreeNode): Promise<void> {
+  if (!dirHandle) return;
+  const what =
+    node.kind === "file"
+      ? `"${stripMdExt(node.name)}"`
+      : `de map "${node.name}" en alles erin`;
+  if (!window.confirm(`${what} verwijderen?`)) return;
+
+  const touchesActive =
+    activeFile && (activeFile.path === node.path || activeFile.path.startsWith(`${node.path}/`));
+
+  try {
+    if (touchesActive && saveTimer !== null) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    await deleteEntry(dirHandle, node.path);
+    if (touchesActive) {
+      clearActiveFileState();
+      await storage.del(STORAGE_KEY_FILE);
+    }
+    await refreshTree();
+  } catch (err) {
+    console.error(err);
+    window.alert(`Verwijderen mislukt: ${(err as Error).message}`);
+  }
+}
+
+async function handleDropMove(sourcePath: string, destFolderPath: string): Promise<void> {
+  if (!dirHandle) return;
+  const srcParent = sourcePath.split("/").slice(0, -1).join("/");
+  if (srcParent === destFolderPath) return;
+  if (destFolderPath === sourcePath || destFolderPath.startsWith(`${sourcePath}/`)) {
+    window.alert("Een map kan niet in zichzelf verplaatst worden");
+    return;
+  }
+
+  const touchesActive =
+    activeFile && (activeFile.path === sourcePath || activeFile.path.startsWith(`${sourcePath}/`));
+  if (touchesActive) await flushPendingSave();
+
+  try {
+    const newPath = await moveEntry(dirHandle, sourcePath, destFolderPath);
+    await refreshTree();
+    if (destFolderPath) fileTree.expandToFile(newPath);
+    await reattachActiveAfterPathChange(sourcePath, newPath);
+  } catch (err) {
+    console.error(err);
+    window.alert(`Verplaatsen mislukt: ${(err as Error).message}`);
+  }
+}
+
 versionsBtn.addEventListener("click", (e) => {
   e.stopPropagation();
   if (versionsPopover.hidden) {
@@ -561,6 +746,12 @@ document.addEventListener("click", (e) => {
     closeVersionsPopover();
   }
 });
+
+document.addEventListener("mousedown", (e) => {
+  const menu = document.querySelector(".context-menu");
+  if (menu && !menu.contains(e.target as Node)) closeContextMenu();
+});
+document.addEventListener("scroll", closeContextMenu, true);
 
 openFolderBtn.addEventListener("click", () => {
   if (pendingReconnect) {
@@ -594,6 +785,8 @@ window.addEventListener("keydown", (e) => {
     void takeSnapshot("manual");
   } else if (e.key === "Escape" && !versionsPopover.hidden) {
     closeVersionsPopover();
+  } else if (e.key === "Escape") {
+    closeContextMenu();
   }
 });
 

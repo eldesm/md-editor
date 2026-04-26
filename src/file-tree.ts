@@ -4,13 +4,44 @@ export type FileTreeOptions = {
   container: HTMLElement;
   onFileClick: (file: FileNode) => void;
   isActive: (file: FileNode) => boolean;
+  onContextMenu?: (node: TreeNode, event: MouseEvent) => void;
+  onDropMove?: (sourcePath: string, destFolderPath: string) => void;
 };
+
+const DRAG_TYPE = "application/x-md-path";
 
 export class FileTree {
   private expanded = new Set<string>();
   private nodes: TreeNode[] = [];
 
-  constructor(private opts: FileTreeOptions) {}
+  constructor(private opts: FileTreeOptions) {
+    this.attachContainerDropHandlers();
+  }
+
+  private attachContainerDropHandlers(): void {
+    const c = this.opts.container;
+    c.addEventListener("dragover", (e) => {
+      if (!e.dataTransfer?.types.includes(DRAG_TYPE)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    });
+    c.addEventListener("dragenter", (e) => {
+      if (!e.dataTransfer?.types.includes(DRAG_TYPE)) return;
+      c.classList.add("drag-over-root");
+    });
+    c.addEventListener("dragleave", (e) => {
+      if (!c.contains(e.relatedTarget as Node | null)) {
+        c.classList.remove("drag-over-root");
+      }
+    });
+    c.addEventListener("drop", (e) => {
+      if (!e.dataTransfer?.types.includes(DRAG_TYPE)) return;
+      e.preventDefault();
+      c.classList.remove("drag-over-root");
+      const sourcePath = e.dataTransfer.getData(DRAG_TYPE);
+      if (sourcePath) this.opts.onDropMove?.(sourcePath, "");
+    });
+  }
 
   setNodes(nodes: TreeNode[]): void {
     this.nodes = nodes;
@@ -88,6 +119,8 @@ export class FileTree {
     const row = document.createElement("div");
     row.className = "tree-row tree-folder-row";
     row.style.paddingLeft = `${depth * 14 + 6}px`;
+    row.dataset.path = node.path;
+    row.draggable = true;
 
     const isOpen = this.expanded.has(node.path);
 
@@ -108,6 +141,12 @@ export class FileTree {
       else this.expanded.add(node.path);
       this.render();
     });
+    row.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      this.opts.onContextMenu?.(node, e);
+    });
+    this.attachDragSource(row, node.path);
+    this.attachDropTarget(row, node.path);
 
     wrap.appendChild(row);
 
@@ -128,6 +167,7 @@ export class FileTree {
     row.className = "tree-row tree-file-row";
     row.style.paddingLeft = `${depth * 14 + 22}px`;
     row.dataset.path = node.path;
+    row.draggable = true;
     if (this.opts.isActive(node)) row.classList.add("active");
 
     const label = document.createElement("span");
@@ -136,7 +176,53 @@ export class FileTree {
     row.appendChild(label);
 
     row.addEventListener("click", () => this.opts.onFileClick(node));
+    row.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      this.opts.onContextMenu?.(node, e);
+    });
+    this.attachDragSource(row, node.path);
+
+    const parentPath = node.path.split("/").slice(0, -1).join("/");
+    this.attachDropTarget(row, parentPath);
 
     return row;
+  }
+
+  private attachDragSource(row: HTMLElement, path: string): void {
+    row.addEventListener("dragstart", (e) => {
+      if (!e.dataTransfer) return;
+      e.dataTransfer.setData(DRAG_TYPE, path);
+      e.dataTransfer.effectAllowed = "move";
+      row.classList.add("dragging");
+    });
+    row.addEventListener("dragend", () => {
+      row.classList.remove("dragging");
+    });
+  }
+
+  private attachDropTarget(row: HTMLElement, destFolderPath: string): void {
+    row.addEventListener("dragover", (e) => {
+      if (!e.dataTransfer?.types.includes(DRAG_TYPE)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "move";
+    });
+    row.addEventListener("dragenter", (e) => {
+      if (!e.dataTransfer?.types.includes(DRAG_TYPE)) return;
+      row.classList.add("drag-over");
+    });
+    row.addEventListener("dragleave", (e) => {
+      if (!row.contains(e.relatedTarget as Node | null)) {
+        row.classList.remove("drag-over");
+      }
+    });
+    row.addEventListener("drop", (e) => {
+      if (!e.dataTransfer?.types.includes(DRAG_TYPE)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      row.classList.remove("drag-over");
+      const sourcePath = e.dataTransfer.getData(DRAG_TYPE);
+      if (sourcePath) this.opts.onDropMove?.(sourcePath, destFolderPath);
+    });
   }
 }
