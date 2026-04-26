@@ -51,7 +51,10 @@ class HeadingNumberWidget extends WidgetType {
 }
 
 class TaskCheckboxWidget extends WidgetType {
-  constructor(private readonly checked: boolean) {
+  constructor(
+    private readonly checked: boolean,
+    private readonly view: EditorView,
+  ) {
     super();
   }
   eq(other: TaskCheckboxWidget): boolean {
@@ -61,10 +64,24 @@ class TaskCheckboxWidget extends WidgetType {
     const span = document.createElement("span");
     span.className = `cm-md-task-checkbox${this.checked ? " checked" : ""}`;
     span.contentEditable = "false";
+    span.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const pos = this.view.posAtDOM(span);
+      const line = this.view.state.doc.lineAt(pos);
+      const offset = pos - line.from;
+      const match = /\[[ xX]\]/.exec(line.text.slice(offset));
+      if (!match) return;
+      const start = line.from + offset + (match.index ?? 0);
+      const end = start + match[0].length;
+      this.view.dispatch({
+        changes: { from: start, to: end, insert: this.checked ? "[ ]" : "[x]" },
+      });
+    });
     return span;
   }
   ignoreEvent(): boolean {
-    return false;
+    return true;
   }
 }
 
@@ -277,7 +294,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             from: node.from,
             to: node.to,
             deco: Decoration.replace({
-              widget: new TaskCheckboxWidget(checked),
+              widget: new TaskCheckboxWidget(checked, view),
             }),
           });
           return;

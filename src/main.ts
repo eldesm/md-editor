@@ -18,6 +18,7 @@ import {
 } from "./filesystem";
 import { FileTree } from "./file-tree";
 import * as storage from "./storage";
+import { exportToPdf } from "./export-pdf";
 
 const SAVE_DEBOUNCE_MS = 400;
 const SNAPSHOT_IDLE_MS = 3 * 60 * 1000;
@@ -36,9 +37,9 @@ const breadcrumbsEl = document.getElementById("breadcrumbs") as HTMLElement;
 const saveStatusEl = document.getElementById("save-status") as HTMLSpanElement;
 const wordCountEl = document.getElementById("word-count") as HTMLSpanElement;
 const editorEl = document.getElementById("editor") as HTMLDivElement;
-const docTitleEl = document.getElementById("doc-title") as HTMLInputElement;
 const versionsBtn = document.getElementById("versions-btn") as HTMLButtonElement;
 const versionsPopover = document.getElementById("versions-popover") as HTMLDivElement;
+const exportPdfBtn = document.getElementById("export-pdf-btn") as HTMLButtonElement;
 
 let dirHandle: FileSystemDirectoryHandle | null = null;
 let tree: TreeNode[] = [];
@@ -85,6 +86,12 @@ function renderBreadcrumbs(): void {
     const crumb = document.createElement("span");
     crumb.className = isLast ? "crumb current" : "crumb";
     crumb.textContent = part;
+    if (isLast) {
+      crumb.contentEditable = "true";
+      crumb.spellcheck = false;
+      crumb.addEventListener("keydown", handleTitleKeydown);
+      crumb.addEventListener("blur", handleTitleBlur);
+    }
     breadcrumbsEl.appendChild(crumb);
     if (!isLast) {
       const sep = document.createElement("span");
@@ -93,6 +100,24 @@ function renderBreadcrumbs(): void {
       breadcrumbsEl.appendChild(sep);
     }
   });
+}
+
+function handleTitleKeydown(e: KeyboardEvent): void {
+  const target = e.target as HTMLElement;
+  if (e.key === "Enter") {
+    e.preventDefault();
+    target.blur();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    if (activeFile) {
+      target.textContent = activeFile.name.replace(/\.(md|markdown)$/i, "");
+    }
+    target.blur();
+  }
+}
+
+function handleTitleBlur(e: FocusEvent): void {
+  void commitTitleRename(e.target as HTMLElement);
 }
 
 function updateWordCount(text: string): void {
@@ -107,16 +132,6 @@ async function refreshTree(): Promise<void> {
   tree = await loadTree(dirHandle);
   fileTree.setNodes(tree);
   if (activeFile) fileTree.expandToFile(activeFile.path);
-}
-
-function setDocTitle(file: FileNode | null): void {
-  if (file) {
-    docTitleEl.value = file.name.replace(/\.(md|markdown)$/i, "");
-    docTitleEl.disabled = false;
-  } else {
-    docTitleEl.value = "";
-    docTitleEl.disabled = true;
-  }
 }
 
 async function openFile(file: FileNode): Promise<void> {
@@ -134,10 +149,10 @@ async function openFile(file: FileNode): Promise<void> {
   setEditorContent(editor, content);
   suppressChange = false;
   renderBreadcrumbs();
-  setDocTitle(file);
   updateWordCount(content);
   setSaveStatus("saved");
   versionsBtn.disabled = false;
+  exportPdfBtn.disabled = false;
   fileTree.expandToFile(file.path);
   fileTree.refresh();
   editor.focus();
@@ -156,17 +171,17 @@ async function openFile(file: FileNode): Promise<void> {
 
 const INVALID_NAME_RE = /[/\\:*?"<>|]/;
 
-async function commitTitleRename(): Promise<void> {
+async function commitTitleRename(target: HTMLElement): Promise<void> {
   if (!activeFile || !dirHandle) return;
-  const raw = docTitleEl.value.trim();
+  const raw = (target.textContent || "").trim();
   const currentBase = activeFile.name.replace(/\.(md|markdown)$/i, "");
   if (raw === "" || raw === currentBase) {
-    docTitleEl.value = currentBase;
+    target.textContent = currentBase;
     return;
   }
   if (INVALID_NAME_RE.test(raw)) {
     window.alert('Bestandsnaam mag geen / \\ : * ? " < > | bevatten.');
-    docTitleEl.value = currentBase;
+    target.textContent = currentBase;
     return;
   }
 
@@ -188,30 +203,14 @@ async function commitTitleRename(): Promise<void> {
     };
     await refreshTree();
     renderBreadcrumbs();
-    setDocTitle(activeFile);
     await storage.set(STORAGE_KEY_FILE, activeFile.path);
     setSaveStatus("saved");
   } catch (err) {
     console.error(err);
     window.alert(`Hernoemen mislukt: ${(err as Error).message}`);
-    docTitleEl.value = currentBase;
+    target.textContent = currentBase;
   }
 }
-
-docTitleEl.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    docTitleEl.blur();
-  } else if (e.key === "Escape") {
-    e.preventDefault();
-    if (activeFile) {
-      docTitleEl.value = activeFile.name.replace(/\.(md|markdown)$/i, "");
-    }
-    docTitleEl.blur();
-  }
-});
-
-docTitleEl.addEventListener("blur", () => void commitTitleRename());
 
 async function saveActive(content: string): Promise<void> {
   if (!activeFile) return;
@@ -290,8 +289,8 @@ async function applyOpenedFolder(
   setEditorContent(editor, "");
   suppressChange = false;
   versionsBtn.disabled = true;
+  exportPdfBtn.disabled = true;
   renderBreadcrumbs();
-  setDocTitle(null);
   updateWordCount("");
   setSaveStatus("idle", "");
   await refreshTree();
@@ -503,6 +502,14 @@ openFolderBtn.addEventListener("click", () => void handleOpenFolder());
 newFileBtn.addEventListener("click", () => void handleNewFile());
 refreshBtn.addEventListener("click", () => void refreshTree());
 toggleSidebarBtn.addEventListener("click", toggleSidebar);
+exportPdfBtn.addEventListener("click", () => {
+  if (!activeFile) return;
+  const title = activeFile.name.replace(/\.(md|markdown)$/i, "");
+  void exportToPdf(editor.state.doc.toString(), title).catch((err) => {
+    console.error(err);
+    window.alert(`Export mislukt: ${(err as Error).message}`);
+  });
+});
 
 window.addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === "\\") {

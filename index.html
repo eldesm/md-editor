@@ -41,10 +41,14 @@
           </button>
           <nav id="breadcrumbs"></nav>
           <span id="save-status"></span>
+          <button id="export-pdf-btn" class="topbar-icon-btn" type="button" disabled title="Export to PDF" aria-label="Export to PDF">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M4 2h5l3 3v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M9 2v3h3" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M8 8v4M6 11l2 2 2-2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </header>
-        <div id="doc-title-wrapper">
-          <input id="doc-title" type="text" placeholder="Untitled" spellcheck="false" disabled />
-        </div>
         <div id="editor"></div>
         <footer id="statusbar">
           <span id="word-count"></span>
