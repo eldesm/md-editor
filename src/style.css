@@ -166,6 +166,44 @@ button {
   cursor: not-allowed;
 }
 
+.btn-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-color: currentColor;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.btn-icon-new-note {
+  -webkit-mask-image: url("../icons/new_note.png");
+  mask-image: url("../icons/new_note.png");
+}
+.btn-icon-new-folder {
+  -webkit-mask-image: url("../icons/new_folder.png");
+  mask-image: url("../icons/new_folder.png");
+}
+.btn-icon-reveal {
+  -webkit-mask-image: url("../icons/finder.png");
+  mask-image: url("../icons/finder.png");
+}
+.btn-icon-collapse {
+  -webkit-mask-image: url("../icons/collapse.png");
+  mask-image: url("../icons/collapse.png");
+}
+.btn-icon-expand {
+  -webkit-mask-image: url("../icons/expand.png");
+  mask-image: url("../icons/expand.png");
+}
+.btn-icon-pdf {
+  -webkit-mask-image: url("../icons/pdf.png");
+  mask-image: url("../icons/pdf.png");
+}
+
 .sidebar-toolbar button:hover:not(:disabled)::after {
   content: attr(title);
   position: absolute;

@@ -10,28 +10,16 @@
       <aside id="sidebar">
         <div class="sidebar-toolbar">
           <button id="new-file-btn" type="button" disabled title="New note" aria-label="New note">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M4 2h5l3 3v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-              <path d="M9 2v3h3" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-              <path d="M8 8v4M6 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-            </svg>
+            <span class="btn-icon btn-icon-new-note"></span>
           </button>
           <button id="new-folder-btn" type="button" disabled title="New folder" aria-label="New folder">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 4a1 1 0 0 1 1-1h3.5l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-              <path d="M8 7v4M6 9h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-            </svg>
+            <span class="btn-icon btn-icon-new-folder"></span>
           </button>
           <button id="reveal-btn" type="button" disabled title="Reveal current file" aria-label="Reveal current file">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.3"/>
-              <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
-            </svg>
+            <span class="btn-icon btn-icon-reveal"></span>
           </button>
-          <button id="collapse-toggle-btn" type="button" disabled title="Collapse all" aria-label="Collapse all">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M5 5l3 3 3-3M5 11l3-3 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+          <button id="collapse-toggle-btn" type="button" disabled title="Expand all" aria-label="Expand all">
+            <span class="btn-icon btn-icon-expand"></span>
           </button>
         </div>
         <div id="file-tree"></div>
@@ -55,11 +43,7 @@
           <nav id="breadcrumbs"></nav>
           <span id="save-status"></span>
           <button id="export-pdf-btn" class="topbar-icon-btn" type="button" disabled title="Export to PDF" aria-label="Export to PDF">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M4 2h5l3 3v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-              <path d="M9 2v3h3" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-              <path d="M8 8v4M6 11l2 2 2-2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <span class="btn-icon btn-icon-pdf"></span>
           </button>
         </header>
         <div id="editor"></div>

@@ -150,6 +150,7 @@ async function refreshTree(): Promise<void> {
   tree = await loadTree(dirHandle);
   fileTree.setNodes(tree);
   if (activeFile) fileTree.expandToFile(activeFile.path);
+  updateCollapseToggleUI();
 }
 
 async function openFile(file: FileNode): Promise<void> {
@@ -175,6 +176,7 @@ async function openFile(file: FileNode): Promise<void> {
   revealBtn.disabled = false;
   fileTree.expandToFile(file.path);
   fileTree.refresh();
+  updateCollapseToggleUI();
   editor.focus();
   void storage.set(STORAGE_KEY_FILE, file.path);
 
@@ -419,16 +421,23 @@ function handleReveal(): void {
   fileTree.revealFile(activeFile.path);
 }
 
-function handleCollapseToggle(): void {
+function updateCollapseToggleUI(): void {
+  const iconEl = collapseToggleBtn.querySelector<HTMLSpanElement>(".btn-icon");
   if (fileTree.hasAnyExpanded()) {
-    fileTree.collapseAll();
-    collapseToggleBtn.title = "Expand all";
-    collapseToggleBtn.setAttribute("aria-label", "Expand all");
-  } else {
-    fileTree.expandAll();
+    if (iconEl) iconEl.className = "btn-icon btn-icon-collapse";
     collapseToggleBtn.title = "Collapse all";
     collapseToggleBtn.setAttribute("aria-label", "Collapse all");
+  } else {
+    if (iconEl) iconEl.className = "btn-icon btn-icon-expand";
+    collapseToggleBtn.title = "Expand all";
+    collapseToggleBtn.setAttribute("aria-label", "Expand all");
   }
+}
+
+function handleCollapseToggle(): void {
+  if (fileTree.hasAnyExpanded()) fileTree.collapseAll();
+  else fileTree.expandAll();
+  updateCollapseToggleUI();
 }
 
 function findFileByPath(nodes: TreeNode[], path: string): FileNode | null {
