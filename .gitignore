@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Reference plugin – not part of this project
+obsidian-outliner-main/

@@ -1,0 +1,220 @@
+%!Adobe-FontList 1.23
+%Locale:0x409
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Invalid
+OutlineFileName:/Volumes/Fileserver/221 ALGEMENE ZAKEN/2023/ALGEMENE ZAKEN/03 RIJKSHUISSTIJL TEMPLATES/03 DESIGN/Fase 1/5e ronde 2e oplevering/Powerpoint/RO_Template_PPT_Presentatie_1920x1080px/Document fonts/AdobeFnt23.lst
+FileLength:5996
+FileModTime:745254025
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:RijksSans-Bold
+FamilyName:RijksSans
+StyleName:Bold
+MenuName:RijksSans
+StyleBits:2
+WeightClass:700
+WidthClass:5
+AngleClass:0
+FullName:RijksSans Bold
+WritingScript:Roman
+OutlineFileName:/Volumes/Fileserver/221 ALGEMENE ZAKEN/2023/ALGEMENE ZAKEN/03 RIJKSHUISSTIJL TEMPLATES/03 DESIGN/Fase 1/5e ronde 2e oplevering/Powerpoint/RO_Template_PPT_Presentatie_1920x1080px/Document fonts/RijksSans-Bold.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+hasCOLR:no
+VariableFontType:NonVariableFont
+FileLength:99696
+FileModTime:722259736
+NameArray:0,Mac,4,RijksSans Bold
+NameArray:0,Win,1,RijksSans
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:RijksSans-ExtraBold
+FamilyName:RijksSans
+StyleName:ExtraBold
+MenuName:RijksSans ExtraBold
+StyleBits:0
+WeightClass:800
+WidthClass:5
+AngleClass:0
+FullName:RijksSans ExtraBold
+WritingScript:Roman
+OutlineFileName:/Volumes/Fileserver/221 ALGEMENE ZAKEN/2023/ALGEMENE ZAKEN/03 RIJKSHUISSTIJL TEMPLATES/03 DESIGN/Fase 1/5e ronde 2e oplevering/Powerpoint/RO_Template_PPT_Presentatie_1920x1080px/Document fonts/RijksSans-ExtraBold.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+hasCOLR:no
+VariableFontType:NonVariableFont
+FileLength:99332
+FileModTime:722259736
+NameArray:0,Mac,4,RijksSans ExtraBold
+NameArray:0,Win,1,RijksSans ExtraBold
+NameArray:0,Win,16,RijksSans
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:RijksSans-Italic
+FamilyName:RijksSans
+StyleName:Italic
+MenuName:RijksSans
+StyleBits:1
+WeightClass:400
+WidthClass:5
+AngleClass:1
+FullName:RijksSans Italic
+WritingScript:Roman
+OutlineFileName:/Volumes/Fileserver/221 ALGEMENE ZAKEN/2023/ALGEMENE ZAKEN/03 RIJKSHUISSTIJL TEMPLATES/03 DESIGN/Fase 1/5e ronde 2e oplevering/Powerpoint/RO_Template_PPT_Presentatie_1920x1080px/Document fonts/RijksSans-Italic.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+hasCOLR:no
+VariableFontType:NonVariableFont
+FileLength:95372
+FileModTime:722259736
+NameArray:0,Mac,4,RijksSans Italic
+NameArray:0,Win,1,RijksSans
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:RijksSans-Light
+FamilyName:RijksSans
+StyleName:Light
+MenuName:RijksSans Light
+StyleBits:0
+WeightClass:300
+WidthClass:5
+AngleClass:0
+FullName:RijksSans Light
+WritingScript:Roman
+OutlineFileName:/Volumes/Fileserver/221 ALGEMENE ZAKEN/2023/ALGEMENE ZAKEN/03 RIJKSHUISSTIJL TEMPLATES/03 DESIGN/Fase 1/5e ronde 2e oplevering/Powerpoint/RO_Template_PPT_Presentatie_1920x1080px/Document fonts/RijksSans-Light.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+hasCOLR:no
+VariableFontType:NonVariableFont
+FileLength:96232
+FileModTime:722259736
+NameArray:0,Mac,4,RijksSans Light
+NameArray:0,Win,1,RijksSans Light
+NameArray:0,Win,16,RijksSans
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:RijksSans-Regular
+FamilyName:RijksSans
+StyleName:Regular
+MenuName:RijksSans
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:RijksSans
+WritingScript:Roman
+OutlineFileName:/Volumes/Fileserver/221 ALGEMENE ZAKEN/2023/ALGEMENE ZAKEN/03 RIJKSHUISSTIJL TEMPLATES/03 DESIGN/Fase 1/5e ronde 2e oplevering/Powerpoint/RO_Template_PPT_Presentatie_1920x1080px/Document fonts/RijksSans-Regular.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+hasCOLR:no
+VariableFontType:NonVariableFont
+FileLength:94260
+FileModTime:722259736
+NameArray:0,Mac,4,RijksSans
+NameArray:0,Win,1,RijksSans
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:RijksSans-SemiBold
+FamilyName:RijksSans
+StyleName:SemiBold
+MenuName:RijksSans SemiBold
+StyleBits:0
+WeightClass:600
+WidthClass:5
+AngleClass:0
+FullName:RijksSans SemiBold
+WritingScript:Roman
+OutlineFileName:/Volumes/Fileserver/221 ALGEMENE ZAKEN/2023/ALGEMENE ZAKEN/03 RIJKSHUISSTIJL TEMPLATES/03 DESIGN/Fase 1/5e ronde 2e oplevering/Powerpoint/RO_Template_PPT_Presentatie_1920x1080px/Document fonts/RijksSans-SemiBold.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+hasCOLR:no
+VariableFontType:NonVariableFont
+FileLength:98364
+FileModTime:722259736
+NameArray:0,Mac,4,RijksSans SemiBold
+NameArray:0,Win,1,RijksSans SemiBold
+NameArray:0,Win,16,RijksSans
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:RijksoverheidSerif-Regular
+FamilyName:RijksoverheidSerif
+StyleName:Regular
+MenuName:RijksoverheidSerif
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:RijksoverheidSerif-Regular
+WritingScript:Roman
+OutlineFileName:/Volumes/Fileserver/221 ALGEMENE ZAKEN/2023/ALGEMENE ZAKEN/03 RIJKSHUISSTIJL TEMPLATES/03 DESIGN/Fase 1/5e ronde 2e oplevering/Powerpoint/RO_Template_PPT_Presentatie_1920x1080px/Document fonts/RijksoverheidSerif-Regular.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+hasCOLR:no
+VariableFontType:NonVariableFont
+FileLength:120008
+FileModTime:700396245
+NameArray:0,Mac,4,RijksoverheidSerif-Regular
+NameArray:0,Win,1,RijksoverheidSerif
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:Wingdings-Regular
+FamilyName:Wingdings
+StyleName:Regular
+MenuName:Wingdings
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:Wingdings
+WritingScript:Roman
+OutlineFileName:/Volumes/Fileserver/221 ALGEMENE ZAKEN/2023/ALGEMENE ZAKEN/03 RIJKSHUISSTIJL TEMPLATES/03 DESIGN/Fase 1/5e ronde 2e oplevering/Powerpoint/RO_Template_PPT_Presentatie_1920x1080px/Document fonts/Wingdings.ttf
+DataFormat:sfntData
+hasSVG:no
+hasCOLR:no
+VariableFontType:NonVariableFont
+FileLength:86384
+FileModTime:730872320
+NameArray:0,Mac,4,Wingdings
+NameArray:0,Win,1,Wingdings
+%EndFont
+

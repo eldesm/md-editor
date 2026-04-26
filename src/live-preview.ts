@@ -1,0 +1,407 @@
+import { syntaxTree } from "@codemirror/language";
+import { RangeSetBuilder } from "@codemirror/state";
+import {
+  Decoration,
+  DecorationSet,
+  EditorView,
+  ViewPlugin,
+  ViewUpdate,
+  WidgetType,
+} from "@codemirror/view";
+
+const HIDE = Decoration.replace({});
+
+class LinkWidget extends WidgetType {
+  constructor(
+    private readonly text: string,
+    private readonly url: string,
+  ) {
+    super();
+  }
+  eq(other: LinkWidget): boolean {
+    return this.text === other.text && this.url === other.url;
+  }
+  toDOM(): HTMLElement {
+    const a = document.createElement("a");
+    a.textContent = this.text;
+    a.href = this.url;
+    a.target = "_blank";
+    a.rel = "noreferrer noopener";
+    a.className = "cm-md-link";
+    return a;
+  }
+}
+
+class HeadingNumberWidget extends WidgetType {
+  constructor(private readonly num: string) {
+    super();
+  }
+  eq(other: HeadingNumberWidget): boolean {
+    return this.num === other.num;
+  }
+  toDOM(): HTMLElement {
+    const span = document.createElement("span");
+    span.className = "cm-md-heading-number";
+    span.textContent = this.num;
+    return span;
+  }
+  ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+class TaskCheckboxWidget extends WidgetType {
+  constructor(private readonly checked: boolean) {
+    super();
+  }
+  eq(other: TaskCheckboxWidget): boolean {
+    return this.checked === other.checked;
+  }
+  toDOM(): HTMLElement {
+    const span = document.createElement("span");
+    span.className = `cm-md-task-checkbox${this.checked ? " checked" : ""}`;
+    span.contentEditable = "false";
+    return span;
+  }
+  ignoreEvent(): boolean {
+    return false;
+  }
+}
+
+class HorizontalRuleWidget extends WidgetType {
+  eq(_other: HorizontalRuleWidget): boolean {
+    return true;
+  }
+  toDOM(): HTMLElement {
+    const span = document.createElement("span");
+    span.className = "cm-md-hr";
+    return span;
+  }
+  ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+class BulletDotWidget extends WidgetType {
+  eq(_other: BulletDotWidget): boolean {
+    return true;
+  }
+  toDOM(): HTMLElement {
+    const span = document.createElement("span");
+    span.className = "cm-md-bullet-dot";
+    return span;
+  }
+  ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+function computeHeadingNumbers(view: EditorView): Map<number, string> {
+  const result = new Map<number, string>();
+  const counters = [0, 0, 0, 0, 0, 0];
+  syntaxTree(view.state).iterate({
+    enter: (node) => {
+      const m = /^ATXHeading([1-6])$/.exec(node.name);
+      if (!m) return undefined;
+      const level = parseInt(m[1], 10);
+      counters[level - 1]++;
+      for (let i = level; i < 6; i++) counters[i] = 0;
+      result.set(node.from, counters.slice(0, level).join("."));
+      return undefined;
+    },
+  });
+  return result;
+}
+
+function activeLines(view: EditorView): Set<number> {
+  const lines = new Set<number>();
+  for (const range of view.state.selection.ranges) {
+    const fromLine = view.state.doc.lineAt(range.from).number;
+    const toLine = view.state.doc.lineAt(range.to).number;
+    for (let i = fromLine; i <= toLine; i++) lines.add(i);
+  }
+  return lines;
+}
+
+function nodeIsOnActiveLine(
+  view: EditorView,
+  from: number,
+  to: number,
+  active: Set<number>,
+): boolean {
+  const startLine = view.state.doc.lineAt(from).number;
+  const endLine = view.state.doc.lineAt(to).number;
+  for (let i = startLine; i <= endLine; i++) {
+    if (active.has(i)) return true;
+  }
+  return false;
+}
+
+type Pending = { from: number; to: number; deco: Decoration };
+
+function addLineDeco(
+  pending: Pending[],
+  view: EditorView,
+  fromPos: number,
+  toPos: number,
+  cls: string,
+): void {
+  let pos = fromPos;
+  while (pos <= toPos) {
+    const line = view.state.doc.lineAt(pos);
+    pending.push({
+      from: line.from,
+      to: line.from,
+      deco: Decoration.line({ class: cls }),
+    });
+    if (line.to >= toPos) break;
+    pos = line.to + 1;
+  }
+}
+
+function buildDecorations(view: EditorView): DecorationSet {
+  const active = activeLines(view);
+  const pending: Pending[] = [];
+  const headingNumbers = computeHeadingNumbers(view);
+
+  const tree = syntaxTree(view.state);
+  for (const { from, to } of view.visibleRanges) {
+    tree.iterate({
+      from,
+      to,
+      enter: (node) => {
+        const onActive = nodeIsOnActiveLine(view, node.from, node.to, active);
+
+        // Whole-line headings
+        const headingMatch = /^ATXHeading([1-6])$/.exec(node.name);
+        if (headingMatch) {
+          const level = headingMatch[1];
+          const line = view.state.doc.lineAt(node.from);
+          pending.push({
+            from: line.from,
+            to: line.from,
+            deco: Decoration.line({ class: `cm-md-h${level}-line` }),
+          });
+          if (!onActive) {
+            const num = headingNumbers.get(node.from);
+            if (num) {
+              pending.push({
+                from: line.from,
+                to: line.from,
+                deco: Decoration.widget({
+                  widget: new HeadingNumberWidget(num),
+                  side: -1,
+                }),
+              });
+            }
+          }
+          return;
+        }
+
+        // Inline styling spans
+        if (node.name === "StrongEmphasis" && node.from < node.to) {
+          pending.push({
+            from: node.from,
+            to: node.to,
+            deco: Decoration.mark({ class: "cm-md-bold" }),
+          });
+          return;
+        }
+        if (node.name === "Emphasis" && node.from < node.to) {
+          pending.push({
+            from: node.from,
+            to: node.to,
+            deco: Decoration.mark({ class: "cm-md-italic" }),
+          });
+          return;
+        }
+        if (node.name === "Strikethrough" && node.from < node.to) {
+          pending.push({
+            from: node.from,
+            to: node.to,
+            deco: Decoration.mark({ class: "cm-md-strike" }),
+          });
+          return;
+        }
+        if (node.name === "InlineCode" && node.from < node.to) {
+          pending.push({
+            from: node.from,
+            to: node.to,
+            deco: Decoration.mark({ class: "cm-md-inline-code" }),
+          });
+          return;
+        }
+
+        // Block-level structures
+        if (node.name === "Blockquote") {
+          addLineDeco(pending, view, node.from, node.to, "cm-md-quote-line");
+          return;
+        }
+        if (node.name === "FencedCode") {
+          addLineDeco(pending, view, node.from, node.to, "cm-md-codeblock-line");
+          // First and last line are the ``` fences
+          const firstLine = view.state.doc.lineAt(node.from);
+          const lastLine = view.state.doc.lineAt(node.to);
+          pending.push({
+            from: firstLine.from,
+            to: firstLine.from,
+            deco: Decoration.line({ class: "cm-md-codeblock-fence" }),
+          });
+          if (lastLine.from !== firstLine.from) {
+            pending.push({
+              from: lastLine.from,
+              to: lastLine.from,
+              deco: Decoration.line({ class: "cm-md-codeblock-fence" }),
+            });
+          }
+          return;
+        }
+        if (node.name === "HorizontalRule") {
+          const line = view.state.doc.lineAt(node.from);
+          pending.push({
+            from: line.from,
+            to: line.from,
+            deco: Decoration.line({ class: "cm-md-hr-line" }),
+          });
+          if (!onActive) {
+            pending.push({
+              from: node.from,
+              to: node.to,
+              deco: Decoration.replace({ widget: new HorizontalRuleWidget() }),
+            });
+          }
+          return;
+        }
+
+        // List items: tag each covered line with a depth class (for guide lines)
+        if (node.name === "ListItem") {
+          let depth = 1;
+          let parent = node.node.parent;
+          while (parent) {
+            if (parent.name === "ListItem") depth++;
+            parent = parent.parent;
+          }
+          const cls = `cm-md-list-d${Math.min(depth, 6)}`;
+          let pos = node.from;
+          while (pos <= node.to) {
+            const line = view.state.doc.lineAt(pos);
+            pending.push({
+              from: line.from,
+              to: line.from,
+              deco: Decoration.line({ class: cls }),
+            });
+            if (line.to >= node.to) break;
+            pos = line.to + 1;
+          }
+          return;
+        }
+
+        // List markers: dot widget for unordered, styled number for ordered
+        if (node.name === "ListMark" && node.from < node.to) {
+          const text = view.state.sliceDoc(node.from, node.to);
+          const isUnordered = /^[-*+]$/.test(text.trim());
+          if (isUnordered && !onActive) {
+            pending.push({
+              from: node.from,
+              to: node.to,
+              deco: Decoration.replace({ widget: new BulletDotWidget() }),
+            });
+          } else {
+            pending.push({
+              from: node.from,
+              to: node.to,
+              deco: Decoration.mark({ class: "cm-md-list-mark" }),
+            });
+          }
+          return;
+        }
+
+        // Task checkboxes: [ ] / [x]
+        if (node.name === "TaskMarker" && node.from < node.to) {
+          const text = view.state.sliceDoc(node.from, node.to);
+          const checked = /\[[xX]\]/.test(text);
+          pending.push({
+            from: node.from,
+            to: node.to,
+            deco: Decoration.replace({
+              widget: new TaskCheckboxWidget(checked),
+            }),
+          });
+          return;
+        }
+
+        // Markdown markers: hide when not on active line, style subtly when revealed
+        if (
+          node.name === "HeaderMark" ||
+          node.name === "EmphasisMark" ||
+          node.name === "CodeMark" ||
+          node.name === "StrikethroughMark" ||
+          node.name === "QuoteMark"
+        ) {
+          if (node.from >= node.to) return;
+          if (onActive) {
+            pending.push({
+              from: node.from,
+              to: node.to,
+              deco: Decoration.mark({ class: "cm-md-marker" }),
+            });
+          } else {
+            let to = node.to;
+            if (node.name === "HeaderMark" || node.name === "QuoteMark") {
+              const next = view.state.sliceDoc(node.to, node.to + 1);
+              if (next === " ") to = node.to + 1;
+            }
+            pending.push({ from: node.from, to, deco: HIDE });
+          }
+          return;
+        }
+
+        // Links: replace whole [text](url) with widget when not active
+        if (node.name === "Link" && !onActive) {
+          const text = extractLinkText(view, node.from, node.to);
+          const url = extractLinkUrl(view, node.from, node.to);
+          if (text && url) {
+            pending.push({
+              from: node.from,
+              to: node.to,
+              deco: Decoration.replace({ widget: new LinkWidget(text, url) }),
+            });
+          }
+          return;
+        }
+      },
+    });
+  }
+
+  pending.sort((a, b) => a.from - b.from || a.to - b.to);
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const p of pending) builder.add(p.from, p.to, p.deco);
+  return builder.finish();
+}
+
+function extractLinkText(view: EditorView, from: number, to: number): string | null {
+  const text = view.state.sliceDoc(from, to);
+  const match = /^\[([^\]]*)\]\(([^)]+)\)$/.exec(text);
+  return match ? match[1] : null;
+}
+
+function extractLinkUrl(view: EditorView, from: number, to: number): string | null {
+  const text = view.state.sliceDoc(from, to);
+  const match = /^\[([^\]]*)\]\(([^)]+)\)$/.exec(text);
+  return match ? match[2] : null;
+}
+
+export const markdownLivePreview = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = buildDecorations(view);
+    }
+    update(update: ViewUpdate): void {
+      if (update.docChanged || update.viewportChanged || update.selectionSet) {
+        this.decorations = buildDecorations(update.view);
+      }
+    }
+  },
+  { decorations: (v) => v.decorations },
+);

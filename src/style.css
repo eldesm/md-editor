@@ -1,0 +1,762 @@
+@font-face {
+  font-family: "RijksSans";
+  src: url("../fonts/RijksSans-Light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "RijksSans";
+  src: url("../fonts/RijksSans-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "RijksSans";
+  src: url("../fonts/RijksSans-Italic.otf") format("opentype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "RijksSans";
+  src: url("../fonts/RijksSans-SemiBold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "RijksSans";
+  src: url("../fonts/RijksSans-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "RijksSans";
+  src: url("../fonts/RijksSans-ExtraBold.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "RijksSerif";
+  src: url("../fonts/RijksoverheidSerif-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Accent palette (Things-inspired) */
+  --blue: #2e80f2;
+  --pink: #ff82b2;
+  --green: #3eb4bf;
+  --yellow: #c98a17;
+  --orange: #e87d3e;
+  --red: #e83e3e;
+  --purple: #9e86c8;
+
+  /* Surface */
+  --bg: #fcfcfc;
+  --bg-elevated: #ffffff;
+  --bg-sidebar: #f6f7f8;
+  --bg-codeblock: #f3f4f6;
+
+  /* Text */
+  --fg: #222222;
+  --fg-muted: #707070;
+  --fg-faint: #ababab;
+  --fg-formatted: #5a5a5a;
+
+  /* Interaction */
+  --accent: #086ddd;
+  --accent-soft: rgba(8, 109, 221, 0.12);
+  --border: #ebedf0;
+  --border-strong: #d4d4d4;
+  --hover: #e2e5e9;
+  --selected: #d6e4f5;
+
+  /* Headings */
+  --h1-color: var(--fg);
+  --h2-color: var(--fg);
+  --h3-color: var(--blue);
+  --h4-color: var(--yellow);
+  --h5-color: var(--red);
+  --h6-color: var(--fg-muted);
+
+  /* Inline accents */
+  --strong-color: var(--pink);
+  --em-color: var(--pink);
+  --quote-color: var(--green);
+
+  /* Fonts */
+  --prose-font: "RijksSans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Inter, Ubuntu, sans-serif;
+  --serif-font: "RijksSerif", Georgia, "Times New Roman", serif;
+  --mono-font: "JetBrains Mono", "Fira Code", Menlo, SFMono-Regular, Consolas,
+    "Roboto Mono", monospace;
+
+  /* Radii */
+  --radius-s: 4px;
+  --radius-m: 6px;
+  --radius-l: 10px;
+
+  /* Layout */
+  --content-max: 640px;
+  --content-half: 320px;
+
+  font-family: var(--prose-font);
+  font-size: 14px;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100vh;
+  transition: grid-template-columns 0.18s ease;
+}
+
+#app.sidebar-collapsed {
+  grid-template-columns: 0 1fr;
+}
+
+#app.sidebar-collapsed #sidebar {
+  border-right-color: transparent;
+}
+
+/* ─── Sidebar ──────────────────────────────────────────────── */
+
+#sidebar {
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.sidebar-toolbar {
+  padding: 10px 10px 6px;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.sidebar-toolbar button {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  color: var(--fg-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-toolbar button:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.sidebar-toolbar button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+#folder-name {
+  padding: 6px 14px 8px;
+  font-size: 11px;
+  color: var(--fg-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+#folder-name.clickable {
+  cursor: pointer;
+  color: var(--accent);
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+#folder-name.clickable:hover {
+  text-decoration: underline;
+}
+
+#file-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 16px;
+}
+
+.tree-empty {
+  padding: 16px 14px;
+  font-size: 12px;
+  color: var(--fg-faint);
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  font-size: 13px;
+  color: var(--fg);
+  cursor: pointer;
+  border-radius: var(--radius-s);
+  white-space: nowrap;
+  overflow: hidden;
+  user-select: none;
+  line-height: 1.4;
+}
+
+.tree-row:hover {
+  background: var(--hover);
+}
+
+.tree-row.active {
+  background: var(--selected);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.tree-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  color: var(--fg-muted);
+}
+
+.tree-row.active .tree-chevron {
+  color: var(--accent);
+}
+
+.tree-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-folder-row .tree-label {
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.tree-children {
+  position: relative;
+}
+
+.tree-children::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+/* ─── Main area ─────────────────────────────────────────────── */
+
+#main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+#topbar {
+  height: 44px;
+  padding: 0 16px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.topbar-icon-btn {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  color: var(--fg-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.topbar-icon-btn:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+#breadcrumbs {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--fg-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.crumb {
+  color: var(--fg-muted);
+}
+
+.crumb.current {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.crumb-sep {
+  color: var(--fg-faint);
+}
+
+#save-status {
+  font-size: 11px;
+  color: var(--fg-faint);
+}
+
+#save-status.saved {
+  color: #4caf50;
+}
+
+#save-status.saving {
+  color: #d97706;
+}
+
+#save-status.error {
+  color: #ef4444;
+}
+
+#doc-title-wrapper {
+  flex-shrink: 0;
+  padding: 32px max(28px, calc(50% - var(--content-half))) 4px;
+  background: var(--bg);
+}
+
+#doc-title {
+  display: block;
+  width: 100%;
+  font-family: var(--prose-font);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+}
+
+#doc-title::placeholder {
+  color: var(--fg-faint);
+  font-weight: 700;
+}
+
+#doc-title:disabled {
+  color: var(--fg-faint);
+  cursor: default;
+}
+
+#editor {
+  flex: 1;
+  overflow: hidden;
+}
+
+#statusbar {
+  height: 24px;
+  padding: 0 16px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  font-size: 11px;
+  color: var(--fg-faint);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+/* ─── CodeMirror ──────────────────────────────────────────────── */
+
+.cm-editor {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--prose-font);
+  font-size: 17px;
+}
+
+.cm-editor.cm-focused {
+  outline: none;
+}
+
+.cm-scroller {
+  font-family: inherit;
+  line-height: 1.55;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+}
+
+.cm-scroller::-webkit-scrollbar {
+  width: 10px;
+}
+.cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cm-scroller::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 10px;
+  border: 2px solid var(--bg);
+}
+.cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Padding & caret-color zijn gezet via proseTheme (zie editor.ts) zodat ze
+   CodeMirror's baseTheme overrulen op specificity. */
+
+.cm-line {
+  padding: 2px 0;
+  position: relative;
+}
+
+.cm-activeLine {
+  background: transparent !important;
+}
+
+.cm-activeLine::before {
+  content: "";
+  position: absolute;
+  left: -16px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 6px 0 0 6px;
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.cm-md-h1-line.cm-activeLine::before,
+.cm-md-h2-line.cm-activeLine::before,
+.cm-md-h3-line.cm-activeLine::before,
+.cm-md-h4-line.cm-activeLine::before,
+.cm-md-h5-line.cm-activeLine::before,
+.cm-md-h6-line.cm-activeLine::before {
+  display: none;
+}
+
+.cm-cursor {
+  border-left-color: var(--accent);
+  border-left-width: 2px;
+}
+
+.cm-selectionBackground,
+.cm-content ::selection {
+  background: var(--accent-soft) !important;
+}
+
+/* ─── Live-preview heading lines ─────────────────────────────── */
+
+.cm-md-h1-line {
+  font-size: 1.85em;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--h1-color);
+  padding-top: 0.8em;
+  padding-bottom: 0.15em;
+}
+
+.cm-md-h2-line {
+  font-size: 1.45em;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--h2-color);
+  padding-top: 0.7em;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 6px;
+}
+
+.cm-md-h3-line {
+  font-size: 1.2em;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--h3-color);
+  padding-top: 0.5em;
+}
+
+.cm-md-h4-line {
+  font-size: 1.05em;
+  font-weight: 600;
+  color: var(--h4-color);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: 0.4em;
+}
+
+.cm-md-h5-line {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--h5-color);
+  padding-top: 0.3em;
+}
+
+.cm-md-h6-line {
+  font-size: 0.92em;
+  font-weight: 600;
+  color: var(--h6-color);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Inline live-preview marks ──────────────────────────────── */
+
+.cm-md-bold {
+  font-weight: 700;
+  color: var(--strong-color);
+}
+
+.cm-md-italic {
+  font-style: italic;
+  color: var(--em-color);
+}
+
+.cm-md-strike {
+  text-decoration: line-through;
+  color: var(--fg-muted);
+}
+
+.cm-md-inline-code {
+  font-family: var(--mono-font);
+  background: var(--bg-codeblock);
+  padding: 1px 6px;
+  border-radius: var(--radius-s);
+  font-size: 0.88em;
+  color: #b91c1c;
+  border: 1px solid var(--border);
+}
+
+.cm-md-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: rgba(8, 109, 221, 0.4);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.cm-md-link:hover {
+  text-decoration-color: var(--accent);
+}
+
+/* Markdown formatting markers when revealed on active line */
+.cm-md-marker {
+  color: var(--fg-formatted);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  opacity: 0.55;
+}
+
+.cm-md-heading-number {
+  position: absolute;
+  right: 100%;
+  margin-right: 0.4em;
+  bottom: 0;
+  opacity: 0.45;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Inline images (rendered later — Things-style card look) */
+.cm-content img {
+  border-radius: var(--radius-s);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  max-width: 100%;
+}
+
+/* ─── Block-level markdown elements ─────────────────────────── */
+
+/* Blockquotes */
+.cm-md-quote-line {
+  font-style: italic;
+  color: var(--quote-color);
+  border-left: 3px solid var(--quote-color);
+  padding-left: 12px !important;
+  margin-left: -15px;
+  opacity: 0.95;
+}
+
+/* Code blocks */
+.cm-md-codeblock-line {
+  font-family: var(--mono-font);
+  font-size: 0.92em;
+  background: var(--bg-codeblock);
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.cm-md-codeblock-fence {
+  color: var(--fg-faint);
+  font-size: 0.78em;
+}
+.cm-md-codeblock-line.cm-md-codeblock-fence:first-child,
+.cm-md-codeblock-fence + .cm-md-codeblock-line:not(.cm-md-codeblock-fence) {
+  /* visual continuity */
+}
+.cm-md-codeblock-fence {
+  border-top-left-radius: var(--radius-s);
+  border-top-right-radius: var(--radius-s);
+}
+.cm-md-codeblock-line.cm-md-codeblock-fence:last-child {
+  border-bottom-left-radius: var(--radius-s);
+  border-bottom-right-radius: var(--radius-s);
+}
+
+/* Horizontal rule */
+.cm-md-hr-line {
+  text-align: center;
+  color: transparent;
+}
+.cm-md-hr {
+  display: inline-block;
+  width: 100%;
+  height: 1px;
+  background: var(--border-strong);
+  vertical-align: middle;
+}
+
+/* Lists */
+.cm-md-list-mark {
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+
+.cm-md-bullet-dot {
+  display: inline-block;
+  width: 0.42em;
+  height: 0.42em;
+  border-radius: 50%;
+  background: var(--fg-muted);
+  vertical-align: 0.18em;
+  margin-right: 0.15em;
+}
+
+/* Vertical guide lines for nested list items.
+   Each .cm-md-list-dN class draws (N-1) vertical lines at the columns
+   where each ancestor list item's bullet sits. Deeper depth class wins
+   via cascade order, so nested lines also get their parent guides. */
+[class*="cm-md-list-d"] {
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.cm-md-list-d2 {
+  background-image: linear-gradient(
+    to right,
+    transparent 0.5ch,
+    var(--fg-faint) 0.5ch,
+    var(--fg-faint) calc(0.5ch + 1px),
+    transparent calc(0.5ch + 1px)
+  );
+}
+
+.cm-md-list-d3 {
+  background-image:
+    linear-gradient(to right, transparent 0.5ch, var(--fg-faint) 0.5ch, var(--fg-faint) calc(0.5ch + 1px), transparent calc(0.5ch + 1px)),
+    linear-gradient(to right, transparent 2.5ch, var(--fg-faint) 2.5ch, var(--fg-faint) calc(2.5ch + 1px), transparent calc(2.5ch + 1px));
+}
+
+.cm-md-list-d4 {
+  background-image:
+    linear-gradient(to right, transparent 0.5ch, var(--fg-faint) 0.5ch, var(--fg-faint) calc(0.5ch + 1px), transparent calc(0.5ch + 1px)),
+    linear-gradient(to right, transparent 2.5ch, var(--fg-faint) 2.5ch, var(--fg-faint) calc(2.5ch + 1px), transparent calc(2.5ch + 1px)),
+    linear-gradient(to right, transparent 4.5ch, var(--fg-faint) 4.5ch, var(--fg-faint) calc(4.5ch + 1px), transparent calc(4.5ch + 1px));
+}
+
+.cm-md-list-d5 {
+  background-image:
+    linear-gradient(to right, transparent 0.5ch, var(--fg-faint) 0.5ch, var(--fg-faint) calc(0.5ch + 1px), transparent calc(0.5ch + 1px)),
+    linear-gradient(to right, transparent 2.5ch, var(--fg-faint) 2.5ch, var(--fg-faint) calc(2.5ch + 1px), transparent calc(2.5ch + 1px)),
+    linear-gradient(to right, transparent 4.5ch, var(--fg-faint) 4.5ch, var(--fg-faint) calc(4.5ch + 1px), transparent calc(4.5ch + 1px)),
+    linear-gradient(to right, transparent 6.5ch, var(--fg-faint) 6.5ch, var(--fg-faint) calc(6.5ch + 1px), transparent calc(6.5ch + 1px));
+}
+
+.cm-md-list-d6 {
+  background-image:
+    linear-gradient(to right, transparent 0.5ch, var(--fg-faint) 0.5ch, var(--fg-faint) calc(0.5ch + 1px), transparent calc(0.5ch + 1px)),
+    linear-gradient(to right, transparent 2.5ch, var(--fg-faint) 2.5ch, var(--fg-faint) calc(2.5ch + 1px), transparent calc(2.5ch + 1px)),
+    linear-gradient(to right, transparent 4.5ch, var(--fg-faint) 4.5ch, var(--fg-faint) calc(4.5ch + 1px), transparent calc(4.5ch + 1px)),
+    linear-gradient(to right, transparent 6.5ch, var(--fg-faint) 6.5ch, var(--fg-faint) calc(6.5ch + 1px), transparent calc(6.5ch + 1px)),
+    linear-gradient(to right, transparent 8.5ch, var(--fg-faint) 8.5ch, var(--fg-faint) calc(8.5ch + 1px), transparent calc(8.5ch + 1px));
+}
+
+/* Task list checkboxes */
+.cm-md-task-checkbox {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--fg-muted);
+  border-radius: 3px;
+  background: transparent;
+  vertical-align: -2px;
+  margin-right: 2px;
+  position: relative;
+  cursor: pointer;
+}
+.cm-md-task-checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.cm-md-task-checkbox.checked::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
