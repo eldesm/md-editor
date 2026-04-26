@@ -16,6 +16,7 @@ export type FolderNode = {
 export type TreeNode = FileNode | FolderNode;
 
 const MARKDOWN_RE = /\.(md|markdown)$/i;
+const BACKUPS_DIR = "_backups";
 
 export async function pickDirectory(): Promise<FileSystemDirectoryHandle> {
   return await window.showDirectoryPicker({ mode: "readwrite" });
@@ -27,7 +28,7 @@ export async function loadTree(
 ): Promise<TreeNode[]> {
   const nodes: TreeNode[] = [];
   for await (const [name, handle] of dir.entries()) {
-    if (name.startsWith(".")) continue;
+    if (name.startsWith(".") || name === BACKUPS_DIR) continue;
     const path = basePath ? `${basePath}/${name}` : name;
     if (handle.kind === "directory") {
       const children = await loadTree(handle as FileSystemDirectoryHandle, path);
@@ -99,15 +100,29 @@ function snapshotTimestamp(date: Date): string {
 
 const SNAPSHOT_RE = /^\.?(.+)\.bak\.(\d{8}-\d{6})$/;
 
+async function getBackupsDir(
+  parent: FileSystemDirectoryHandle,
+  create: boolean,
+): Promise<FileSystemDirectoryHandle | null> {
+  try {
+    return await parent.getDirectoryHandle(BACKUPS_DIR, { create });
+  } catch (err) {
+    if ((err as DOMException).name === "NotFoundError") return null;
+    throw err;
+  }
+}
+
 export async function writeSnapshot(
   root: FileSystemDirectoryHandle,
   filePath: string,
   content: string,
 ): Promise<string> {
   const { parent, baseName } = await getParentDir(root, filePath);
+  const backups = await getBackupsDir(parent, true);
+  if (!backups) throw new Error("Could not create backups folder");
   const stamp = snapshotTimestamp(new Date());
-  const snapshotName = `.${baseName}.bak.${stamp}`;
-  const handle = await parent.getFileHandle(snapshotName, { create: true });
+  const snapshotName = `${baseName}.bak.${stamp}`;
+  const handle = await backups.getFileHandle(snapshotName, { create: true });
   const writable = await handle.createWritable();
   await writable.write(content);
   await writable.close();
@@ -119,7 +134,9 @@ export async function hasSnapshots(
   filePath: string,
 ): Promise<boolean> {
   const { parent, baseName } = await getParentDir(root, filePath);
-  for await (const [name] of parent.entries()) {
+  const backups = await getBackupsDir(parent, false);
+  if (!backups) return false;
+  for await (const [name] of backups.entries()) {
     const m = SNAPSHOT_RE.exec(name);
     if (m && m[1] === baseName) return true;
   }
@@ -139,8 +156,10 @@ export async function listSnapshots(
   filePath: string,
 ): Promise<SnapshotInfo[]> {
   const { parent, baseName } = await getParentDir(root, filePath);
+  const backups = await getBackupsDir(parent, false);
+  if (!backups) return [];
   const out: SnapshotInfo[] = [];
-  for await (const [name] of parent.entries()) {
+  for await (const [name] of backups.entries()) {
     const m = SNAPSHOT_RE.exec(name);
     if (m && m[1] === baseName) {
       out.push({ name, date: parseSnapshotStamp(m[2]) });
@@ -156,7 +175,9 @@ export async function readSnapshot(
   snapshotName: string,
 ): Promise<string> {
   const { parent } = await getParentDir(root, filePath);
-  const handle = await parent.getFileHandle(snapshotName);
+  const backups = await getBackupsDir(parent, false);
+  if (!backups) throw new Error("No backups folder");
+  const handle = await backups.getFileHandle(snapshotName);
   const file = await handle.getFile();
   return await file.text();
 }
@@ -167,8 +188,10 @@ export async function pruneSnapshots(
   maxKeep: number,
 ): Promise<void> {
   const { parent, baseName } = await getParentDir(root, filePath);
+  const backups = await getBackupsDir(parent, false);
+  if (!backups) return;
   const matches: string[] = [];
-  for await (const [name] of parent.entries()) {
+  for await (const [name] of backups.entries()) {
     const m = SNAPSHOT_RE.exec(name);
     if (m && m[1] === baseName) matches.push(name);
   }
@@ -176,7 +199,7 @@ export async function pruneSnapshots(
   matches.sort();
   const toRemove = matches.slice(0, matches.length - maxKeep);
   for (const name of toRemove) {
-    await parent.removeEntry(name);
+    await backups.removeEntry(name);
   }
 }
 

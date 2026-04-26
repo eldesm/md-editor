@@ -405,7 +405,7 @@ function formatRelative(date: Date): string {
 
 function formatStamp(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 function closeVersionsPopover(): void {
