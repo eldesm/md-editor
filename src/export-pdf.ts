@@ -111,9 +111,22 @@ const PRINT_STYLES = `
     font-size: inherit;
   }
   hr { border: none; border-top: 1px solid var(--border-strong); margin: 1.2em 0; }
-  table { border-collapse: collapse; margin: 0.8em 0; }
-  th, td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
-  th { background: var(--bg-codeblock); }
+  table {
+    border-collapse: collapse;
+    margin: 0.8em 0;
+    width: 100%;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid var(--border-strong);
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--bg-codeblock);
+    font-weight: 700;
+  }
   img { max-width: 100%; }
 `;
 
