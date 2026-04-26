@@ -290,7 +290,9 @@ async function entryExists(
     await dir.getFileHandle(name);
     return true;
   } catch (err) {
-    if ((err as DOMException).name !== "NotFoundError") throw err;
+    const errName = (err as DOMException).name;
+    if (errName === "TypeMismatchError") return true;
+    if (errName !== "NotFoundError") throw err;
   }
   try {
     await dir.getDirectoryHandle(name);
@@ -308,7 +310,8 @@ async function getEntry(
   try {
     return { handle: await dir.getFileHandle(name), isFile: true };
   } catch (err) {
-    if ((err as DOMException).name !== "NotFoundError") throw err;
+    const errName = (err as DOMException).name;
+    if (errName !== "NotFoundError" && errName !== "TypeMismatchError") throw err;
   }
   return { handle: await dir.getDirectoryHandle(name), isFile: false };
 }

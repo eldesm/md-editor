@@ -16,6 +16,14 @@ export class FileTree {
 
   constructor(private opts: FileTreeOptions) {
     this.attachContainerDropHandlers();
+    document.addEventListener("dragend", () => this.clearDragVisuals());
+  }
+
+  private clearDragVisuals(): void {
+    const c = this.opts.container;
+    c.classList.remove("drag-over-root");
+    c.querySelectorAll(".drag-over").forEach((el) => el.classList.remove("drag-over"));
+    c.querySelectorAll(".dragging").forEach((el) => el.classList.remove("dragging"));
   }
 
   private attachContainerDropHandlers(): void {
@@ -27,6 +35,7 @@ export class FileTree {
     });
     c.addEventListener("dragenter", (e) => {
       if (!e.dataTransfer?.types.includes(DRAG_TYPE)) return;
+      if ((e.target as HTMLElement)?.closest?.(".tree-row")) return;
       c.classList.add("drag-over-root");
     });
     c.addEventListener("dragleave", (e) => {
