@@ -203,6 +203,10 @@ button {
   -webkit-mask-image: url("../icons/pdf.png");
   mask-image: url("../icons/pdf.png");
 }
+.btn-icon-download-md {
+  -webkit-mask-image: url("../icons/download_md.png");
+  mask-image: url("../icons/download_md.png");
+}
 
 .sidebar-toolbar button:hover:not(:disabled)::after {
   content: attr(title);

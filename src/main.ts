@@ -54,6 +54,7 @@ const mainEl = document.getElementById("main") as HTMLElement;
 const versionsBtn = document.getElementById("versions-btn") as HTMLButtonElement;
 const versionsPopover = document.getElementById("versions-popover") as HTMLDivElement;
 const exportPdfBtn = document.getElementById("export-pdf-btn") as HTMLButtonElement;
+const downloadMdBtn = document.getElementById("download-md-btn") as HTMLButtonElement;
 
 let dirHandle: FileSystemDirectoryHandle | null = null;
 let tree: TreeNode[] = [];
@@ -175,6 +176,7 @@ async function openFile(file: FileNode): Promise<void> {
   setSaveStatus("saved");
   versionsBtn.disabled = false;
   exportPdfBtn.disabled = false;
+  downloadMdBtn.disabled = false;
   revealBtn.disabled = false;
   fileTree.expandToFile(file.path);
   fileTree.refresh();
@@ -321,6 +323,7 @@ async function applyOpenedFolder(
   suppressChange = false;
   versionsBtn.disabled = true;
   exportPdfBtn.disabled = true;
+  downloadMdBtn.disabled = true;
   revealBtn.disabled = true;
   renderBreadcrumbs();
   updateWordCount("");
@@ -581,6 +584,7 @@ function clearActiveFileState(): void {
   suppressChange = false;
   versionsBtn.disabled = true;
   exportPdfBtn.disabled = true;
+  downloadMdBtn.disabled = true;
   revealBtn.disabled = true;
   renderBreadcrumbs();
   updateWordCount("");
@@ -864,6 +868,20 @@ exportPdfBtn.addEventListener("click", () => {
     console.error(err);
     window.alert(`Export mislukt: ${(err as Error).message}`);
   });
+});
+downloadMdBtn.addEventListener("click", () => {
+  if (!activeFile) return;
+  const blob = new Blob([editor.state.doc.toString()], {
+    type: "text/markdown;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = ensureMdExt(activeFile.name);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 });
 
 window.addEventListener("keydown", (e) => {
