@@ -357,6 +357,23 @@ button {
   flex-direction: column;
   overflow: hidden;
   background: var(--bg);
+  position: relative;
+}
+
+#main.import-drag-over::after {
+  content: "Drop om te importeren naar Inbox";
+  position: absolute;
+  inset: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-s);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 10;
 }
 
 #topbar {

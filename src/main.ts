@@ -12,6 +12,7 @@ import {
   duplicateEntry,
   deleteEntry,
   moveEntry,
+  importFile,
   writeSnapshot,
   pruneSnapshots,
   hasSnapshots,
@@ -49,6 +50,7 @@ const breadcrumbsEl = document.getElementById("breadcrumbs") as HTMLElement;
 const saveStatusEl = document.getElementById("save-status") as HTMLSpanElement;
 const wordCountEl = document.getElementById("word-count") as HTMLSpanElement;
 const editorEl = document.getElementById("editor") as HTMLDivElement;
+const mainEl = document.getElementById("main") as HTMLElement;
 const versionsBtn = document.getElementById("versions-btn") as HTMLButtonElement;
 const versionsPopover = document.getElementById("versions-popover") as HTMLDivElement;
 const exportPdfBtn = document.getElementById("export-pdf-btn") as HTMLButtonElement;
@@ -738,6 +740,85 @@ async function handleDropMove(sourcePath: string, destFolderPath: string): Promi
     window.alert(`Verplaatsen mislukt: ${(err as Error).message}`);
   }
 }
+
+const INBOX_FOLDER = "Inbox";
+const MD_RE = /\.(md|markdown)$/i;
+let dragDepth = 0;
+
+function hasExternalFiles(e: DragEvent): boolean {
+  return e.dataTransfer?.types.includes("Files") ?? false;
+}
+
+async function handleExternalDrop(files: FileList): Promise<void> {
+  if (!dirHandle) {
+    window.alert("Open eerst een werkmap voor je een bestand dropt.");
+    return;
+  }
+  const mdFiles = Array.from(files).filter((f) => MD_RE.test(f.name));
+  if (mdFiles.length === 0) {
+    window.alert("Alleen .md/.markdown bestanden worden geïmporteerd.");
+    return;
+  }
+  await flushPendingSave();
+  let lastPath: string | null = null;
+  try {
+    for (const file of mdFiles) {
+      lastPath = await importFile(dirHandle, INBOX_FOLDER, file);
+    }
+    await refreshTree();
+    if (lastPath) {
+      const opened = findFileByPath(tree, lastPath);
+      if (opened) await openFile(opened);
+    }
+  } catch (err) {
+    console.error(err);
+    window.alert(`Importeren mislukt: ${(err as Error).message}`);
+  }
+}
+
+mainEl.addEventListener(
+  "dragenter",
+  (e) => {
+    if (!hasExternalFiles(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepth++;
+    mainEl.classList.add("import-drag-over");
+  },
+  true,
+);
+mainEl.addEventListener(
+  "dragover",
+  (e) => {
+    if (!hasExternalFiles(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  },
+  true,
+);
+mainEl.addEventListener(
+  "dragleave",
+  (e) => {
+    if (!hasExternalFiles(e)) return;
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) mainEl.classList.remove("import-drag-over");
+  },
+  true,
+);
+mainEl.addEventListener(
+  "drop",
+  (e) => {
+    if (!hasExternalFiles(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepth = 0;
+    mainEl.classList.remove("import-drag-over");
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) void handleExternalDrop(files);
+  },
+  true,
+);
 
 versionsBtn.addEventListener("click", (e) => {
   e.stopPropagation();

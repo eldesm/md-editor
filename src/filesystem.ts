@@ -424,6 +424,23 @@ async function resolveFolderHandle(
   return current;
 }
 
+export async function importFile(
+  root: FileSystemDirectoryHandle,
+  folderName: string,
+  file: File,
+): Promise<string> {
+  const folder = await root.getDirectoryHandle(folderName, { create: true });
+  const baseName = file.name;
+  const finalName = (await entryExists(folder, baseName))
+    ? await findUniqueName(folder, baseName, true)
+    : baseName;
+  const handle = await folder.getFileHandle(finalName, { create: true });
+  const writable = await handle.createWritable();
+  await writable.write(file);
+  await writable.close();
+  return `${folderName}/${finalName}`;
+}
+
 export async function moveEntry(
   root: FileSystemDirectoryHandle,
   srcPath: string,
