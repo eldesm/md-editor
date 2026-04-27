@@ -199,9 +199,9 @@ button {
   -webkit-mask-image: url("../icons/expand.png");
   mask-image: url("../icons/expand.png");
 }
-.btn-icon-pdf {
-  -webkit-mask-image: url("../icons/pdf.png");
-  mask-image: url("../icons/pdf.png");
+.btn-icon-download-pdf {
+  -webkit-mask-image: url("../icons/download_pdf.png");
+  mask-image: url("../icons/download_pdf.png");
 }
 .btn-icon-download-md {
   -webkit-mask-image: url("../icons/download_md.png");
@@ -389,6 +389,17 @@ button {
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   flex-shrink: 0;
+}
+
+.topbar-downloads {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.topbar-download-btn .btn-icon {
+  width: 20px;
+  height: 20px;
 }
 
 .topbar-icon-btn {
