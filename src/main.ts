@@ -887,6 +887,7 @@ window.addEventListener("beforeunload", (e) => {
   }
 });
 
+document.title = `md-editor ${__APP_VERSION__}`;
 renderBreadcrumbs();
 updateWordCount("");
 void tryRestoreLastFolder();
