@@ -162,7 +162,7 @@ function ensureStyleSheet(): void {
   document.head.appendChild(style);
 }
 
-function stripFrontmatter(md: string): string {
+export function stripFrontmatter(md: string): string {
   const lines = md.split("\n");
   if (lines.length < 2 || lines[0] !== "---") return md;
   for (let i = 1; i < lines.length; i++) {

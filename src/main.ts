@@ -28,6 +28,7 @@ import {
 import { FileTree } from "./file-tree";
 import * as storage from "./storage";
 import { exportToPdf } from "./export-pdf";
+import { exportToWord } from "./export-docx";
 
 const SAVE_DEBOUNCE_MS = 400;
 const SNAPSHOT_IDLE_MS = 3 * 60 * 1000;
@@ -54,6 +55,7 @@ const mainEl = document.getElementById("main") as HTMLElement;
 const versionsBtn = document.getElementById("versions-btn") as HTMLButtonElement;
 const versionsPopover = document.getElementById("versions-popover") as HTMLDivElement;
 const exportPdfBtn = document.getElementById("export-pdf-btn") as HTMLButtonElement;
+const exportDocxBtn = document.getElementById("export-docx-btn") as HTMLButtonElement;
 const downloadMdBtn = document.getElementById("download-md-btn") as HTMLButtonElement;
 
 let dirHandle: FileSystemDirectoryHandle | null = null;
@@ -176,6 +178,7 @@ async function openFile(file: FileNode): Promise<void> {
   setSaveStatus("saved");
   versionsBtn.disabled = false;
   exportPdfBtn.disabled = false;
+  exportDocxBtn.disabled = false;
   downloadMdBtn.disabled = false;
   revealBtn.disabled = false;
   fileTree.expandToFile(file.path);
@@ -323,6 +326,7 @@ async function applyOpenedFolder(
   suppressChange = false;
   versionsBtn.disabled = true;
   exportPdfBtn.disabled = true;
+  exportDocxBtn.disabled = true;
   downloadMdBtn.disabled = true;
   revealBtn.disabled = true;
   renderBreadcrumbs();
@@ -584,6 +588,7 @@ function clearActiveFileState(): void {
   suppressChange = false;
   versionsBtn.disabled = true;
   exportPdfBtn.disabled = true;
+  exportDocxBtn.disabled = true;
   downloadMdBtn.disabled = true;
   revealBtn.disabled = true;
   renderBreadcrumbs();
@@ -865,6 +870,14 @@ exportPdfBtn.addEventListener("click", () => {
   if (!activeFile) return;
   const title = stripMdExt(activeFile.name);
   void exportToPdf(editor.state.doc.toString(), title).catch((err) => {
+    console.error(err);
+    window.alert(`Export mislukt: ${(err as Error).message}`);
+  });
+});
+exportDocxBtn.addEventListener("click", () => {
+  if (!activeFile) return;
+  const title = stripMdExt(activeFile.name);
+  void exportToWord(editor.state.doc.toString(), title).catch((err) => {
     console.error(err);
     window.alert(`Export mislukt: ${(err as Error).message}`);
   });

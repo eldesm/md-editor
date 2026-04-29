@@ -207,6 +207,10 @@ button {
   -webkit-mask-image: url("../icons/download_md.png");
   mask-image: url("../icons/download_md.png");
 }
+.btn-icon-download-docx {
+  -webkit-mask-image: url("../icons/download_doc.png");
+  mask-image: url("../icons/download_doc.png");
+}
 
 .sidebar-toolbar button:hover:not(:disabled)::after {
   content: attr(title);
