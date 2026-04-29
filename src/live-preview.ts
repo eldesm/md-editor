@@ -162,10 +162,41 @@ function addLineDeco(
   }
 }
 
+function findFrontmatterRange(view: EditorView): { from: number; to: number } | null {
+  const doc = view.state.doc;
+  if (doc.lines < 2) return null;
+  const firstLine = doc.line(1);
+  if (firstLine.text !== "---") return null;
+  for (let i = 2; i <= doc.lines; i++) {
+    const line = doc.line(i);
+    if (line.text === "---" || line.text === "...") {
+      return { from: firstLine.from, to: line.to };
+    }
+  }
+  return null;
+}
+
 function buildDecorations(view: EditorView): DecorationSet {
   const active = activeLines(view);
   const pending: Pending[] = [];
   const headingNumbers = computeHeadingNumbers(view);
+  const frontmatter = findFrontmatterRange(view);
+
+  if (frontmatter) {
+    const startLine = view.state.doc.lineAt(frontmatter.from);
+    const endLine = view.state.doc.lineAt(frontmatter.to);
+    for (let n = startLine.number; n <= endLine.number; n++) {
+      const line = view.state.doc.line(n);
+      const isFence = n === startLine.number || n === endLine.number;
+      pending.push({
+        from: line.from,
+        to: line.from,
+        deco: Decoration.line({
+          class: `cm-md-frontmatter-line${isFence ? " cm-md-frontmatter-fence" : ""}`,
+        }),
+      });
+    }
+  }
 
   const tree = syntaxTree(view.state);
   for (const { from, to } of view.visibleRanges) {
@@ -173,6 +204,14 @@ function buildDecorations(view: EditorView): DecorationSet {
       from,
       to,
       enter: (node) => {
+        if (
+          frontmatter &&
+          node.from >= frontmatter.from &&
+          node.to <= frontmatter.to
+        ) {
+          return;
+        }
+
         const onActive = nodeIsOnActiveLine(view, node.from, node.to, active);
 
         // Whole-line headings

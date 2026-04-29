@@ -162,8 +162,19 @@ function ensureStyleSheet(): void {
   document.head.appendChild(style);
 }
 
+function stripFrontmatter(md: string): string {
+  const lines = md.split("\n");
+  if (lines.length < 2 || lines[0] !== "---") return md;
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i] === "---" || lines[i] === "...") {
+      return lines.slice(i + 1).join("\n").replace(/^\n+/, "");
+    }
+  }
+  return md;
+}
+
 export async function exportToPdf(markdown: string, title: string): Promise<void> {
-  const rawBody = await marked.parse(markdown, { gfm: true, breaks: false });
+  const rawBody = await marked.parse(stripFrontmatter(markdown), { gfm: true, breaks: false });
   const body = DOMPurify.sanitize(rawBody);
 
   ensureStyleSheet();
