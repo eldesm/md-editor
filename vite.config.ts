@@ -4,8 +4,10 @@ import { readFileSync } from "node:fs";
 
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8")) as { version: string };
 
+const base = process.env.VERCEL === "1" ? "/" : "/md-editor/";
+
 export default defineConfig({
-  base: "/md-editor/",
+  base,
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
@@ -21,7 +23,7 @@ export default defineConfig({
         background_color: "#ffffff",
         display: "standalone",
         start_url: ".",
-        scope: "/md-editor/",
+        scope: base,
         icons: [
           {
             src: "icons/MD-192.png",
