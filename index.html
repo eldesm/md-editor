@@ -27,12 +27,21 @@
         </div>
         <div id="file-tree"></div>
         <div class="sidebar-footer">
-          <button id="open-folder-btn" type="button" title="Open folder" aria-label="Open folder">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path d="M2 4a1 1 0 0 1 1-1h3.5l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-            </svg>
-            <span id="folder-name">No folder open</span>
-          </button>
+          <div class="sidebar-footer-row">
+            <button id="open-folder-btn" type="button" title="Open folder" aria-label="Open folder">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M2 4a1 1 0 0 1 1-1h3.5l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+              </svg>
+              <span id="folder-name">No folder open</span>
+            </button>
+            <button id="settings-btn" type="button" title="Shortcuts &amp; info" aria-label="Shortcuts and info">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M8 1.5v1.6M8 12.9v1.6M14.5 8h-1.6M3.1 8H1.5M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1M12.6 12.6l-1.1-1.1M4.5 4.5L3.4 3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div id="settings-popover" hidden></div>
         </div>
       </aside>
       <main id="main">

@@ -41,7 +41,7 @@ const STORAGE_KEY_PINS_PREFIX = "pins:";
 const SLOT_TRIPLE_WINDOW_MS = 600;
 const SLOT_OPEN_DEBOUNCE_MS = 300;
 const IS_MAC = /Mac|iPad|iPhone|iPod/.test(navigator.platform);
-const SLOT_LABEL = IS_MAC ? "⌘" : "Alt+";
+const SLOT_LABEL = "Alt+";
 
 const appEl = document.getElementById("app") as HTMLDivElement;
 const toggleSidebarBtn = document.getElementById("toggle-sidebar-btn") as HTMLButtonElement;
@@ -62,6 +62,8 @@ const versionsPopover = document.getElementById("versions-popover") as HTMLDivEl
 const exportPdfBtn = document.getElementById("export-pdf-btn") as HTMLButtonElement;
 const exportDocxBtn = document.getElementById("export-docx-btn") as HTMLButtonElement;
 const downloadMdBtn = document.getElementById("download-md-btn") as HTMLButtonElement;
+const settingsBtn = document.getElementById("settings-btn") as HTMLButtonElement;
+const settingsPopover = document.getElementById("settings-popover") as HTMLDivElement;
 
 let dirHandle: FileSystemDirectoryHandle | null = null;
 let tree: TreeNode[] = [];
@@ -612,6 +614,78 @@ async function openVersionsPopover(): Promise<void> {
   }
 }
 
+function closeSettingsPopover(): void {
+  settingsPopover.hidden = true;
+  settingsPopover.replaceChildren();
+}
+
+function buildSettingsPopover(): void {
+  const mod = "Ctrl+";
+  const sections: { title: string; rows: { key: string; desc: string }[] }[] = [
+    {
+      title: "Formatting",
+      rows: [
+        { key: `${mod}B`, desc: "Bold (toggle)" },
+        { key: `${mod}I`, desc: "Italic (toggle)" },
+        { key: `${mod}E`, desc: "Inline code (toggle)" },
+        { key: `${mod}K`, desc: "Link (toggle)" },
+      ],
+    },
+    {
+      title: "Document pinning",
+      rows: [
+        { key: `${SLOT_LABEL}1…9`, desc: "Open pinned document" },
+        { key: `${SLOT_LABEL}1…9 ×3`, desc: "Pin current document to that slot" },
+      ],
+    },
+    {
+      title: "Other",
+      rows: [
+        { key: `${mod}S`, desc: "Manual snapshot" },
+        { key: `${mod}\\`, desc: "Toggle sidebar" },
+        { key: "Drag .md", desc: "Import into Inbox" },
+      ],
+    },
+  ];
+
+  settingsPopover.replaceChildren();
+  for (const section of sections) {
+    const wrap = document.createElement("div");
+    wrap.className = "settings-section";
+
+    const title = document.createElement("div");
+    title.className = "settings-section-title";
+    title.textContent = section.title;
+    wrap.appendChild(title);
+
+    for (const row of section.rows) {
+      const r = document.createElement("div");
+      r.className = "settings-row";
+      const k = document.createElement("span");
+      k.className = "settings-key";
+      k.textContent = row.key;
+      const d = document.createElement("span");
+      d.className = "settings-desc";
+      d.textContent = row.desc;
+      r.appendChild(k);
+      r.appendChild(d);
+      wrap.appendChild(r);
+    }
+    settingsPopover.appendChild(wrap);
+  }
+
+  const footer = document.createElement("div");
+  footer.className = "settings-footer";
+  footer.textContent = `md-editor ${__APP_VERSION__}`;
+  settingsPopover.appendChild(footer);
+}
+
+function openSettingsPopover(): void {
+  closeVersionsPopover();
+  buildSettingsPopover();
+  settingsPopover.hidden = false;
+}
+
 async function restoreSnapshot(snap: SnapshotInfo): Promise<void> {
   if (restoreInFlight || !activeFile || !dirHandle) return;
   restoreInFlight = true;
@@ -924,6 +998,23 @@ document.addEventListener("click", (e) => {
   }
 });
 
+settingsBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (settingsPopover.hidden) {
+    openSettingsPopover();
+  } else {
+    closeSettingsPopover();
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (settingsPopover.hidden) return;
+  const target = e.target as Node;
+  if (!settingsPopover.contains(target) && !settingsBtn.contains(target)) {
+    closeSettingsPopover();
+  }
+});
+
 document.addEventListener("mousedown", (e) => {
   const menu = document.querySelector(".context-menu");
   if (menu && !menu.contains(e.target as Node)) closeContextMenu();
@@ -993,6 +1084,8 @@ window.addEventListener("keydown", (e) => {
     handleSlotKey(e.key);
   } else if (e.key === "Escape" && !versionsPopover.hidden) {
     closeVersionsPopover();
+  } else if (e.key === "Escape" && !settingsPopover.hidden) {
+    closeSettingsPopover();
   } else if (e.key === "Escape") {
     closeContextMenu();
   }
