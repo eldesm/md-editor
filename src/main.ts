@@ -38,8 +38,6 @@ const STATUS_FLASH_MS = 1500;
 const STORAGE_KEY_DIR = "lastDir";
 const STORAGE_KEY_FILE = "lastFile";
 const STORAGE_KEY_PINS_PREFIX = "pins:";
-const SLOT_TRIPLE_WINDOW_MS = 600;
-const SLOT_OPEN_DEBOUNCE_MS = 300;
 const IS_MAC = /Mac|iPad|iPhone|iPod/.test(navigator.platform);
 const SLOT_LABEL = "Alt+";
 
@@ -76,10 +74,6 @@ let suppressChange = false;
 let restoreInFlight = false;
 let pendingReconnect: (() => Promise<void>) | null = null;
 let pinnedSlots: Record<string, string> = {};
-const slotStates = new Map<
-  string,
-  { presses: number; firstPressAt: number; timer: number | null }
->();
 
 const editor = createEditor(editorEl, handleEditorChange);
 
@@ -507,28 +501,6 @@ async function openPinnedSlot(slot: string): Promise<void> {
   await openFile(file);
 }
 
-function handleSlotKey(slot: string): void {
-  const now = Date.now();
-  let state = slotStates.get(slot);
-  if (!state || now - state.firstPressAt > SLOT_TRIPLE_WINDOW_MS) {
-    state = { presses: 0, firstPressAt: now, timer: null };
-    slotStates.set(slot, state);
-  }
-  state.presses++;
-  if (state.timer !== null) clearTimeout(state.timer);
-
-  if (state.presses >= 3) {
-    slotStates.delete(slot);
-    void pinCurrentToSlot(slot);
-    return;
-  }
-
-  state.timer = window.setTimeout(() => {
-    slotStates.delete(slot);
-    void openPinnedSlot(slot);
-  }, SLOT_OPEN_DEBOUNCE_MS);
-}
-
 function findFileByPath(nodes: TreeNode[], path: string): FileNode | null {
   for (const node of nodes) {
     if (node.kind === "file" && node.path === path) return node;
@@ -635,7 +607,7 @@ function buildSettingsPopover(): void {
       title: "Document pinning",
       rows: [
         { key: `${SLOT_LABEL}1…9`, desc: "Open pinned document" },
-        { key: `${SLOT_LABEL}1…9 ×3`, desc: "Pin current document to that slot" },
+        { key: `${SLOT_LABEL}Shift+1…9`, desc: "Pin current document to that slot" },
       ],
     },
     {
@@ -1074,14 +1046,15 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     void takeSnapshot("manual");
   } else if (
+    /^Digit[1-9]$/.test(e.code) &&
     (IS_MAC
       ? e.metaKey && !e.ctrlKey && !e.altKey
-      : e.altKey && !e.ctrlKey && !e.metaKey) &&
-    !e.shiftKey &&
-    /^[1-9]$/.test(e.key)
+      : e.altKey && !e.ctrlKey && !e.metaKey)
   ) {
     e.preventDefault();
-    handleSlotKey(e.key);
+    const slot = e.code.slice(5);
+    if (e.shiftKey) void pinCurrentToSlot(slot);
+    else void openPinnedSlot(slot);
   } else if (e.key === "Escape" && !versionsPopover.hidden) {
     closeVersionsPopover();
   } else if (e.key === "Escape" && !settingsPopover.hidden) {
