@@ -40,6 +40,8 @@ const STORAGE_KEY_FILE = "lastFile";
 const STORAGE_KEY_PINS_PREFIX = "pins:";
 const SLOT_TRIPLE_WINDOW_MS = 600;
 const SLOT_OPEN_DEBOUNCE_MS = 300;
+const IS_MAC = /Mac|iPad|iPhone|iPod/.test(navigator.platform);
+const SLOT_LABEL = IS_MAC ? "⌘" : "Alt+";
 
 const appEl = document.getElementById("app") as HTMLDivElement;
 const toggleSidebarBtn = document.getElementById("toggle-sidebar-btn") as HTMLButtonElement;
@@ -480,13 +482,13 @@ async function savePinnedSlots(): Promise<void> {
 
 async function pinCurrentToSlot(slot: string): Promise<void> {
   if (!activeFile) {
-    setSaveStatus("idle", `No file to pin to ⌘${slot}`);
+    setSaveStatus("idle", `No file to pin to ${SLOT_LABEL}${slot}`);
     window.setTimeout(() => setSaveStatus("saved"), STATUS_FLASH_MS);
     return;
   }
   pinnedSlots[slot] = activeFile.path;
   await savePinnedSlots();
-  setSaveStatus("saved", `Pinned to ⌘${slot}`);
+  setSaveStatus("saved", `Pinned to ${SLOT_LABEL}${slot}`);
   window.setTimeout(() => setSaveStatus("saved"), STATUS_FLASH_MS);
 }
 
@@ -495,7 +497,7 @@ async function openPinnedSlot(slot: string): Promise<void> {
   if (!path) return;
   const file = findFileByPath(tree, path);
   if (!file) {
-    setSaveStatus("error", `⌘${slot} target missing`);
+    setSaveStatus("error", `${SLOT_LABEL}${slot} target missing`);
     window.setTimeout(() => setSaveStatus("saved"), STATUS_FLASH_MS);
     return;
   }
@@ -981,8 +983,9 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     void takeSnapshot("manual");
   } else if (
-    (e.metaKey || e.ctrlKey) &&
-    !e.altKey &&
+    (IS_MAC
+      ? e.metaKey && !e.ctrlKey && !e.altKey
+      : e.altKey && !e.ctrlKey && !e.metaKey) &&
     !e.shiftKey &&
     /^[1-9]$/.test(e.key)
   ) {
