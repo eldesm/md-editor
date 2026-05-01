@@ -14,3 +14,4 @@
 | [security.md](security.md) | Threat model, mitigaties, Content-Security-Policy. |
 | [security-status.md](security-status.md) | Auto-gegenereerd statusrapport van de laatste audit-run. |
 | [roadmap.md](roadmap.md) | Toekomstige overwegingen en open punten. |
+| [security-actions-blueprint.md](security-actions-blueprint.md) | Ontwerp voor een toekomstige centrale `security-actions`-repo, voor wanneer er een tweede PWA bijkomt. |
