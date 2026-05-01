@@ -5,7 +5,6 @@ import { CspEvaluator } from "csp_evaluator/dist/evaluator.js";
 import { Severity } from "csp_evaluator/dist/finding.js";
 
 const REPORT_PATH = "docs/security-status.md";
-const HTML_PATH = "index.html";
 const FAIL_AT = Severity.HIGH_MAYBE;
 
 const sevName = (n) =>
@@ -21,18 +20,41 @@ function runAudit() {
   }
 }
 
+function findCsp() {
+  try {
+    const config = JSON.parse(readFileSync("vercel.json", "utf8"));
+    for (const rule of config.headers ?? []) {
+      const csp = (rule.headers ?? []).find(
+        (h) => h.key.toLowerCase() === "content-security-policy",
+      );
+      if (csp) return { source: "vercel.json (HTTP header)", csp: csp.value };
+    }
+  } catch {}
+
+  try {
+    const html = readFileSync("index.html", "utf8");
+    const m = html.match(
+      /<meta[^>]*http-equiv="Content-Security-Policy"[^>]*content="([^"]+)"/i,
+    );
+    if (m) return { source: "index.html (meta-tag)", csp: m[1] };
+  } catch {}
+
+  return null;
+}
+
 function evaluateCsp() {
-  const html = readFileSync(HTML_PATH, "utf8");
-  const m = html.match(
-    /<meta[^>]*http-equiv="Content-Security-Policy"[^>]*content="([^"]+)"/i,
-  );
-  if (!m) return { csp: null, findings: [] };
-  const parsed = new CspParser(m[1]).csp;
-  return { csp: m[1], findings: new CspEvaluator(parsed).evaluate() };
+  const found = findCsp();
+  if (!found) return { source: null, csp: null, findings: [] };
+  const parsed = new CspParser(found.csp).csp;
+  return {
+    source: found.source,
+    csp: found.csp,
+    findings: new CspEvaluator(parsed).evaluate(),
+  };
 }
 
 const audit = runAudit();
-const { csp, findings: cspFindings } = evaluateCsp();
+const { source: cspSource, csp, findings: cspFindings } = evaluateCsp();
 const now = new Date()
   .toISOString()
   .replace("T", " ")
@@ -76,8 +98,9 @@ md +=
 md += "## 2. Content-Security-Policy\n\n";
 md += `Bron: \`scripts/check-csp.mjs\` met Google's \`csp_evaluator\`. Faaldrempel: \`${sevName(FAIL_AT)}\` (${FAIL_AT}).\n\n`;
 if (!csp) {
-  md += "**Status: geen CSP meta-tag gevonden in `index.html`.**\n\n";
+  md += "**Status: geen CSP gevonden in `vercel.json` of `index.html`.**\n\n";
 } else {
+  md += `Gelezen uit: \`${cspSource}\`\n\n`;
   md += "| Severity | Aantal |\n|---|---|\n";
   for (const sev of [
     "HIGH",

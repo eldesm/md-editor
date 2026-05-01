@@ -32,10 +32,11 @@ Alle automatisering loopt via **GitHub Actions**, zodat configuratie in git zit 
 - *Beperkingen*: alleen *gepubliceerde* advisories — geen zero-days, geen reachability-analyse. Bij false positives kan een specifieke advisory geüpgrade worden via een `npm overrides`-blok in `package.json`, of als laatste redmiddel via `--audit-level=critical`.
 
 #### 1.2.2 Content-Security-Policy validatie
-`node scripts/check-csp.mjs` extraheert de CSP-meta-tag uit `index.html`, parsed 'm met Google's `csp_evaluator` library en faalt bij findings van severity **HIGH_MAYBE** (40) of erger. Detecteert o.a. `unsafe-eval`, `*` als source, ontbrekende `object-src`/`base-uri`, en bekende JSONP-bypass-risks.
+`node scripts/check-csp.mjs` zoekt de CSP eerst in `vercel.json` (HTTP-header, canonical) en valt anders terug op de meta-tag in `index.html`. De gevonden policy gaat door Google's `csp_evaluator` library en de check faalt bij findings van severity **HIGH_MAYBE** (40) of erger. Detecteert o.a. `unsafe-eval`, `*` als source, ontbrekende `object-src`/`base-uri`, en bekende JSONP-bypass-risks.
 
 - *Threshold*: `Severity.HIGH_MAYBE` (40) — `MEDIUM_MAYBE` (50) findings worden geprint maar laten de build slagen. Pas `FAIL_AT` in het script aan om strikter of losser te zijn.
-- *Beperkingen*: valideert alleen het *bedoelde* beleid in de bron. Of de host de policy ook correct serveert (en welke headers er aan toegevoegd worden) is een runtime-check op de gedeployde URL — daarvoor zijn securityheaders.com en Mozilla Observatory bedoeld.
+- *Bron-prioriteit*: `vercel.json` wint omdat dat de strenge canonical policy is (incl. `frame-ancestors`). De meta-tag CSP voor GH Pages wordt alleen gevalideerd als `vercel.json` ontbreekt — anders kan de validatie het beste op de strikte versie focussen.
+- *Beperkingen*: valideert alleen het *bedoelde* beleid in de bron. Of de host de policy ook correct serveert is een runtime-check op de gedeployde URL — daarvoor zijn securityheaders.com en Mozilla Observatory bedoeld.
 
 #### 1.2.3 Auto-gegenereerd statusrapport
 Op runs van `main` (push, schedule, workflow_dispatch) draait `node scripts/security-report.mjs` na de twee checks. Dit script vat beide uitkomsten samen in [security-status.md](security-status.md): tellingen per severity, blokkerende findings en de timestamp van de run met link naar het GitHub Actions log. De workflow committed dat bestand vervolgens met `[skip ci]` terug naar `main` (geen workflow-loop).

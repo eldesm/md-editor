@@ -3,22 +3,42 @@ import { CspParser } from "csp_evaluator/dist/parser.js";
 import { CspEvaluator } from "csp_evaluator/dist/evaluator.js";
 import { Severity } from "csp_evaluator/dist/finding.js";
 
-const HTML_PATH = "index.html";
 const FAIL_AT = Severity.HIGH_MAYBE;
 
-const html = readFileSync(HTML_PATH, "utf8");
-const match = html.match(
-  /<meta[^>]*http-equiv="Content-Security-Policy"[^>]*content="([^"]+)"/i,
-);
-if (!match) {
-  console.error(`No Content-Security-Policy meta tag found in ${HTML_PATH}`);
+function findCsp() {
+  try {
+    const config = JSON.parse(readFileSync("vercel.json", "utf8"));
+    for (const rule of config.headers ?? []) {
+      const csp = (rule.headers ?? []).find(
+        (h) => h.key.toLowerCase() === "content-security-policy",
+      );
+      if (csp) return { source: "vercel.json", csp: csp.value };
+    }
+  } catch {}
+
+  try {
+    const html = readFileSync("index.html", "utf8");
+    const m = html.match(
+      /<meta[^>]*http-equiv="Content-Security-Policy"[^>]*content="([^"]+)"/i,
+    );
+    if (m) return { source: "index.html", csp: m[1] };
+  } catch {}
+
+  return null;
+}
+
+const found = findCsp();
+if (!found) {
+  console.error(
+    "No Content-Security-Policy found in vercel.json (header) or index.html (meta).",
+  );
   process.exit(1);
 }
 
-const csp = match[1];
-console.log(`Policy: ${csp}\n`);
+console.log(`Source: ${found.source}`);
+console.log(`Policy: ${found.csp}\n`);
 
-const parsed = new CspParser(csp).csp;
+const parsed = new CspParser(found.csp).csp;
 const findings = new CspEvaluator(parsed).evaluate();
 
 const severityName = (n) =>

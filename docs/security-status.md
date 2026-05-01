@@ -1,6 +1,6 @@
 # Security status
 
-Laatst bijgewerkt: **2026-05-01 14:48 UTC** ([run](https://github.com/eldesm/md-editor/actions/runs/25218830051))
+Laatst bijgewerkt: **2026-05-01 14:53 UTC**
 
 Automatisch gegenereerd door `scripts/security-report.mjs` via de [Security audit workflow](../.github/workflows/audit.yml). Niet handmatig wijzigen — een nieuwe run overschrijft het.
 
@@ -21,6 +21,8 @@ Bron: `npm audit --omit=dev --json`
 ## 2. Content-Security-Policy
 
 Bron: `scripts/check-csp.mjs` met Google's `csp_evaluator`. Faaldrempel: `HIGH_MAYBE` (40).
+
+Gelezen uit: `vercel.json (HTTP header)`
 
 | Severity | Aantal |
 |---|---|
