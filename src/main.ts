@@ -37,6 +37,9 @@ const SNAPSHOT_MAX = 10;
 const STATUS_FLASH_MS = 1500;
 const STORAGE_KEY_DIR = "lastDir";
 const STORAGE_KEY_FILE = "lastFile";
+const STORAGE_KEY_PINS_PREFIX = "pins:";
+const SLOT_TRIPLE_WINDOW_MS = 600;
+const SLOT_OPEN_DEBOUNCE_MS = 300;
 
 const appEl = document.getElementById("app") as HTMLDivElement;
 const toggleSidebarBtn = document.getElementById("toggle-sidebar-btn") as HTMLButtonElement;
@@ -68,6 +71,11 @@ let charsSinceSnapshot = 0;
 let suppressChange = false;
 let restoreInFlight = false;
 let pendingReconnect: (() => Promise<void>) | null = null;
+let pinnedSlots: Record<string, string> = {};
+const slotStates = new Map<
+  string,
+  { presses: number; firstPressAt: number; timer: number | null }
+>();
 
 const editor = createEditor(editorEl, handleEditorChange);
 
@@ -333,6 +341,7 @@ async function applyOpenedFolder(
   updateWordCount("");
   setSaveStatus("idle", "");
   await refreshTree();
+  await loadPinnedSlots();
 
   if (options.restoreLastFile) {
     const lastFile = await storage.get<string>(STORAGE_KEY_FILE);
@@ -447,6 +456,73 @@ function handleCollapseToggle(): void {
   if (fileTree.hasAnyExpanded()) fileTree.collapseAll();
   else fileTree.expandAll();
   updateCollapseToggleUI();
+}
+
+function pinsKey(): string | null {
+  return dirHandle ? `${STORAGE_KEY_PINS_PREFIX}${dirHandle.name}` : null;
+}
+
+async function loadPinnedSlots(): Promise<void> {
+  const key = pinsKey();
+  if (!key) {
+    pinnedSlots = {};
+    return;
+  }
+  const saved = await storage.get<Record<string, string>>(key);
+  pinnedSlots = saved ?? {};
+}
+
+async function savePinnedSlots(): Promise<void> {
+  const key = pinsKey();
+  if (!key) return;
+  await storage.set(key, pinnedSlots);
+}
+
+async function pinCurrentToSlot(slot: string): Promise<void> {
+  if (!activeFile) {
+    setSaveStatus("idle", `No file to pin to ⌘${slot}`);
+    window.setTimeout(() => setSaveStatus("saved"), STATUS_FLASH_MS);
+    return;
+  }
+  pinnedSlots[slot] = activeFile.path;
+  await savePinnedSlots();
+  setSaveStatus("saved", `Pinned to ⌘${slot}`);
+  window.setTimeout(() => setSaveStatus("saved"), STATUS_FLASH_MS);
+}
+
+async function openPinnedSlot(slot: string): Promise<void> {
+  const path = pinnedSlots[slot];
+  if (!path) return;
+  const file = findFileByPath(tree, path);
+  if (!file) {
+    setSaveStatus("error", `⌘${slot} target missing`);
+    window.setTimeout(() => setSaveStatus("saved"), STATUS_FLASH_MS);
+    return;
+  }
+  if (activeFile?.path === path) return;
+  await openFile(file);
+}
+
+function handleSlotKey(slot: string): void {
+  const now = Date.now();
+  let state = slotStates.get(slot);
+  if (!state || now - state.firstPressAt > SLOT_TRIPLE_WINDOW_MS) {
+    state = { presses: 0, firstPressAt: now, timer: null };
+    slotStates.set(slot, state);
+  }
+  state.presses++;
+  if (state.timer !== null) clearTimeout(state.timer);
+
+  if (state.presses >= 3) {
+    slotStates.delete(slot);
+    void pinCurrentToSlot(slot);
+    return;
+  }
+
+  state.timer = window.setTimeout(() => {
+    slotStates.delete(slot);
+    void openPinnedSlot(slot);
+  }, SLOT_OPEN_DEBOUNCE_MS);
 }
 
 function findFileByPath(nodes: TreeNode[], path: string): FileNode | null {
@@ -904,6 +980,14 @@ window.addEventListener("keydown", (e) => {
   } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
     e.preventDefault();
     void takeSnapshot("manual");
+  } else if (
+    (e.metaKey || e.ctrlKey) &&
+    !e.altKey &&
+    !e.shiftKey &&
+    /^[1-9]$/.test(e.key)
+  ) {
+    e.preventDefault();
+    handleSlotKey(e.key);
   } else if (e.key === "Escape" && !versionsPopover.hidden) {
     closeVersionsPopover();
   } else if (e.key === "Escape") {
