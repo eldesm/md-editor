@@ -12,4 +12,5 @@
 | [build.md](build.md) | Lokale build, productie-bundle, PWA install-flow, browser-support. |
 | [CI.md](CI.md) | GitHub Actions workflows: deploy en security audit. |
 | [security.md](security.md) | Threat model, mitigaties, Content-Security-Policy. |
+| [security-status.md](security-status.md) | Auto-gegenereerd statusrapport van de laatste audit-run. |
 | [roadmap.md](roadmap.md) | Toekomstige overwegingen en open punten. |

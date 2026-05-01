@@ -1,0 +1,43 @@
+# Security status
+
+Laatst bijgewerkt: **2026-05-01 14:18 UTC**
+
+Automatisch gegenereerd door `scripts/security-report.mjs` via de [Security audit workflow](../.github/workflows/audit.yml). Niet handmatig wijzigen — een nieuwe run overschrijft het.
+
+## 1. Dependency CVE's (productie-bundle)
+
+Bron: `npm audit --omit=dev --json`
+
+| Severity | Aantal |
+|---|---|
+| Critical | 0 |
+| High | 0 |
+| Moderate | 0 |
+| Low | 0 |
+| Info | 0 |
+
+**Status: schoon.** Geen blokkerende kwetsbaarheden.
+
+## 2. Content-Security-Policy
+
+Bron: `scripts/check-csp.mjs` met Google's `csp_evaluator`. Faaldrempel: `HIGH_MAYBE` (40).
+
+| Severity | Aantal |
+|---|---|
+| HIGH | 0 |
+| SYNTAX | 0 |
+| MEDIUM | 0 |
+| HIGH_MAYBE | 0 |
+| STRICT_CSP | 0 |
+| MEDIUM_MAYBE | 1 |
+| INFO | 0 |
+
+**Status: schoon.** Geen blokkerende findings.
+
+### Bevindingen
+
+- **MEDIUM_MAYBE** `script-src`: 'self' can be problematic if you host JSONP, AngularJS or user uploaded files.
+
+## 3. Volgende automatische run
+
+Wekelijkse cron-run: maandag 06:00 UTC. Daarnaast bij elke push naar `main` en bij PR's tegen `main`.

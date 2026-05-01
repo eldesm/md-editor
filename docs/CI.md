@@ -37,6 +37,13 @@ Alle automatisering loopt via **GitHub Actions**, zodat configuratie in git zit 
 - *Threshold*: `Severity.HIGH_MAYBE` (40) — `MEDIUM_MAYBE` (50) findings worden geprint maar laten de build slagen. Pas `FAIL_AT` in het script aan om strikter of losser te zijn.
 - *Beperkingen*: valideert alleen het *bedoelde* beleid in de bron. Of de host de policy ook correct serveert (en welke headers er aan toegevoegd worden) is een runtime-check op de gedeployde URL — daarvoor zijn securityheaders.com en Mozilla Observatory bedoeld.
 
+#### 1.2.3 Auto-gegenereerd statusrapport
+Op runs van `main` (push, schedule, workflow_dispatch) draait `node scripts/security-report.mjs` na de twee checks. Dit script vat beide uitkomsten samen in [security-status.md](security-status.md): tellingen per severity, blokkerende findings en de timestamp van de run met link naar het GitHub Actions log. De workflow committed dat bestand vervolgens met `[skip ci]` terug naar `main` (geen workflow-loop).
+
+- *Vereist `permissions: contents: write`* op de workflow zodat de bot kan pushen.
+- *Niet op PR's*: een PR-run zou commits naar `main` moeten maken (onwenselijk en onmogelijk vanaf forks). PR's draaien daarom alleen de twee checks.
+- *Race-conditions*: bij overlappende runs (cron + push) is de laatst-pushende winnaar; de volgende run overschrijft het rapport sowieso, dus permanent dataverlies is niet mogelijk.
+
 ## 2. Aanvullende beveiliging (buiten Actions)
 
 ### Dependabot
@@ -53,5 +60,6 @@ Dependabot vult `audit.yml` aan: de workflow *blokkeert* merges bij een CVE, Dep
 npm ci                                    # exact dezelfde versies als CI
 npm audit --omit=dev --audit-level=high   # dependency CVE-check (1.2.1)
 node scripts/check-csp.mjs                # CSP-validatie (1.2.2)
+node scripts/security-report.mjs          # genereert docs/security-status.md (1.2.3)
 npm run build                             # zelfde build als deploy.yml
 ```
