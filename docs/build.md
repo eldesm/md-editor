@@ -24,17 +24,11 @@ Een lokale PreToolUse-hook (in Claude-settings) bumpt de patch-versie in `packag
 - Security-headers worden gezet via [`vercel.json`](../vercel.json) — zie [security.md](security.md) voor de volledige policy.
 - Custom domain: in Vercel project → Settings → Domains. DNS bij de elidesmet.nl-provider: CNAME `md-editor` → `cname.vercel-dns.com`. Vercel issued automatisch een Let's Encrypt-certificaat.
 
-### GitHub Pages (migratie-pagina)
+### GitHub Pages (parallel deployment)
 - URL: `eldesm.github.io/md-editor/`
-- Workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) deployt nu géén Vite-build meer, maar uploadt enkel de map [`gh-pages/`](../gh-pages/) naar GitHub Pages.
-- Inhoud: een statische uitleg-pagina die gebruikers naar `md-editor.elidesmet.nl` stuurt + een service worker (`gh-pages/sw.js`) die de oude PWA-installatie proactief opruimt.
-
-**Hoe de migratie werkt voor bestaande PWA-users:**
-1. De geïnstalleerde PWA op `eldesm.github.io/md-editor/` controleert binnen ~24 uur op service worker updates (workbox `autoUpdate`-gedrag).
-2. Browser fetcht `/md-editor/sw.js` → krijgt de nieuwe migration-SW (heel andere content dan de oude workbox-SW) → installeert die.
-3. Bij activate: alle caches gewist, SW unregistert zichzelf, alle openstaande clients worden ge-reload.
-4. Volgende open: geen SW meer → `index.html` wordt rechtstreeks van de origin geladen → krijgt de migration-pagina.
-5. Gebruiker leest de uitleg, klikt door naar `md-editor.elidesmet.nl`, installeert daar opnieuw. Notes blijven onaangetast (staan op de eigen schijf).
+- Workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) deployt op push naar `main` met `base: "/md-editor/"` (Vite default omdat `VERCEL` niet gezet is in deze runner).
+- CSP via meta-tag (geen `frame-ancestors`-defense — die directive werkt alleen via een HTTP-header).
+- Blijft in productie naast Vercel: `github.io`-domeinen zijn vrijwel altijd whitelisted in corporate IT-policies, terwijl een net-nieuw eigen subdomein als `md-editor.elidesmet.nl` op werklaptops vaak in een "beperkte weergave" terechtkomt door SmartScreen-reputatie of corporate Edge-beleid.
 
 ## CI/CD
 Zie [CI.md](CI.md) voor de GitHub Actions workflows (deploy + security audit).

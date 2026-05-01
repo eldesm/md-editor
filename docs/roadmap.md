@@ -5,11 +5,12 @@
 - **`report-uri` / `report-to`** voor live CSP-violation-monitoring (in productie zien welke policy-overtredingen er gebeuren). Vereist een rapporteringseindpunt zoals report-uri.com of een eigen Vercel-route.
 - **Branch protection op `main`** met required status check op de `audit`-job — zodat een agent of mens de gates niet via een PR-edit kan neutraliseren. Te configureren in GitHub Settings, niet in deze repo. Zie [security.md § Bekende beperkingen](security.md).
 
-## GH Pages decommissioning
-- **~~Migratie-pagina deployen~~** ✓ Gedaan: `gh-pages/` wordt door [deploy.yml](../.github/workflows/deploy.yml) op GH Pages gezet en ruimt de oude PWA-installatie automatisch op (zie [build.md](build.md)).
-- **Meta-tag CSP verwijderen** uit `index.html` zodra alle bekende gebruikers zijn overgestapt naar `md-editor.elidesmet.nl`. De HTTP-header in `vercel.json` is de canonical policy en de meta-tag voegt dan niets meer toe.
-- **`vite.config.ts` `base`-conditional opruimen** zodra GH Pages niet meer dient als app-host (alleen migration page) — fallback `/md-editor/` is dan alleen voor lokale dev relevant.
-- **`deploy.yml` workflow uitzetten** zodra je via metrics/feedback weet dat niemand meer op de oude URL zit. De migration-pagina kan dan ook offline.
+## GH Pages: parallelle deploy houden of opruimen
+GH Pages draait sinds de Vercel-migratie tijdelijk weer als volwaardige app, omdat `md-editor.elidesmet.nl` op werklaptops met corporate Edge-beleid in beperkte weergave terechtkomt (geen SmartScreen-reputatie). Concrete vervolgstappen liggen klaar:
+- **Migratie-pagina opnieuw uitrollen** zodra `md-editor.elidesmet.nl` voldoende reputation heeft of via corporate IT is whitelisted. De code voor `gh-pages/index.html` + cleanup-`sw.js` staat in git history (commit `0d0ab0a` / `429b19b`).
+- **Meta-tag CSP verwijderen** uit `index.html` zodra GH Pages niet meer als app dient. De HTTP-header in `vercel.json` is dan de canonical policy.
+- **`vite.config.ts` `base`-conditional opruimen** zodra GH Pages niet meer als app-host dient — fallback `/md-editor/` is dan alleen voor lokale dev relevant.
+- **`deploy.yml` workflow uitzetten** als laatste stap.
 
 ## Features
 - **Echte `.docx`** in plaats van het huidige Word-HTML-document met `.doc` extensie (vereist een library als `docx`).

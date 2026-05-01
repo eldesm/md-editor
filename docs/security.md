@@ -20,14 +20,14 @@ Browser-only app, geen backend, geen multi-user data. Notes blijven op de schijf
 
 ## Hosting & headers
 
-De app draait op één canonical origin; de oude GH Pages-URL serveert sinds de migratie nog slechts een uitleg-pagina + cleanup-SW.
+De app draait parallel op twee origins. De Vercel-versie heeft de sterkere headers; de GH Pages-versie blijft beschikbaar omdat `github.io` corporate-whitelisted is op veel werklaptops waar het nieuwe eigen domein in een "beperkte weergave" terechtkomt.
 
-| URL | Host | Inhoud | CSP-bron | Andere headers |
-|---|---|---|---|---|
-| `md-editor.elidesmet.nl` | Vercel | de app | HTTP-header in [`vercel.json`](../vercel.json) | XFO, nosniff, Referrer-Policy, Permissions-Policy, HSTS |
-| `eldesm.github.io/md-editor/` | GitHub Pages | migratie-pagina ([`gh-pages/`](../gh-pages/)) | Meta-tag in `gh-pages/index.html` (minimaal — pagina rendert alleen tekst en een redirect-knop) | Alleen wat GH Pages standaard zet (HSTS) |
+| URL | Host | CSP-bron | Andere headers |
+|---|---|---|---|
+| `md-editor.elidesmet.nl` (canonical) | Vercel | HTTP-header in [`vercel.json`](../vercel.json) | XFO, nosniff, Referrer-Policy, Permissions-Policy, HSTS |
+| `eldesm.github.io/md-editor/` (corporate-friendly) | GitHub Pages | Meta-tag in `index.html` | Alleen wat GH Pages standaard zet (HSTS) |
 
-Bestaande PWA-installs op de GH Pages origin worden door `gh-pages/sw.js` proactief opgeruimd: caches gewist, service worker zelf-unregistert, clients ge-reload zodat ze de migratie-pagina zien. De canonical Vercel-deploy heeft de strikte CSP-header (incl. `frame-ancestors 'none'`).
+GitHub Pages laat geen custom HTTP-headers toe. De meta-tag-CSP is een baseline-policy zonder `frame-ancestors` (die directive werkt alleen via een HTTP-header). De canonical Vercel-deploy is strikter en preferent voor users zonder corporate restricties.
 
 ### Vercel CSP (HTTP-header, canonical)
 
