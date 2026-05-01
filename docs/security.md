@@ -51,8 +51,9 @@ form-action 'none';
 
 Identiek aan boven, maar zonder `frame-ancestors` (genegeerd in meta) en met `frame-src 'self'` (kan strikter, niet relevant zolang GH Pages geen iframes gebruikt).
 
-## Dependency scanning
-- **CI gate**: `npm audit --omit=dev --audit-level=high` draait op push, PR en wekelijks (zie [CI.md § 1.2](CI.md)). Faalt de build bij een high/critical CVE in productie-deps.
+## Code- en dependency-scanning
+- **Eigen code (`src/`)**: CodeQL met `security-extended` queries draait op push, PR en wekelijks (zie [CI.md § 1.3](CI.md)). Findings verschijnen in de GitHub Security-tab — server-side, niet via een PR-edit te verbergen. Detecteert XSS-sinks, prototype pollution, regex-DoS, onveilige deserialisaties en hardcoded secrets.
+- **Dependencies (`package-lock.json`)**: `npm audit --omit=dev --audit-level=high` (zie [CI.md § 1.2.1](CI.md)) faalt de build bij high/critical CVE's in productie-deps.
 - **GitHub Dependabot**: aan te zetten via repo → Settings → Code security voor automatische alerts en patch-PR's.
 
 ## Bekende beperkingen

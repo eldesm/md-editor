@@ -45,6 +45,27 @@ Op runs van `main` (push, schedule, workflow_dispatch) draait `node scripts/secu
 - *Niet op PR's*: een PR-run zou commits naar `main` moeten maken (onwenselijk en onmogelijk vanaf forks). PR's draaien daarom alleen de twee checks.
 - *Race-conditions*: bij overlappende runs (cron + push) is de laatst-pushende winnaar; de volgende run overschrijft het rapport sowieso, dus permanent dataverlies is niet mogelijk.
 
+### 1.3 `codeql.yml` — Static code analysis
+
+**Trigger:** push naar `main`, PR's naar `main`, en wekelijks (maandag 07:00 UTC — gespreid van de audit-cron op 06:00).
+
+**Wat het doet:**
+GitHub's CodeQL-engine analyseert `src/` (en alle andere TypeScript/JavaScript in de repo) op security-patterns: XSS-sinks, prototype pollution, regex-DoS, onveilige deserialisaties, hardcoded secrets, etc. Gebruikt de `security-extended` query-suite — strenger dan de default.
+
+**Waar de resultaten verschijnen:**
+- **Repo → Security-tab → Code scanning** — alle findings server-side, los van `.github/workflows/`. Een PR die de workflow weghaalt verbergt de findings *niet* — ze blijven historisch zichtbaar tot ze handmatig worden opgelost of gedismist.
+- Op PR's: inline annotaties op gewijzigde code als CodeQL daar nieuwe findings ontdekt.
+
+**Verschil met `audit.yml`:**
+- `audit.yml § 1.2.1` checkt **dependencies** (CVE's in `package-lock.json`).
+- `codeql.yml` checkt **eigen code** (bugs in `src/`).
+
+Beide zijn nodig — een bug in jouw `export-pdf.ts` wordt nooit door `npm audit` gevonden, en omgekeerd.
+
+**Beperkingen:**
+- Statische analyse → false positives en false negatives. CodeQL is conservatief, maar geen vervanging voor een pentest.
+- Alleen JavaScript/TypeScript — andere talen zouden eigen `language:` matrix-entries vereisen.
+
 ## 2. Aanvullende beveiliging (buiten Actions)
 
 ### Dependabot
