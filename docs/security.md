@@ -10,7 +10,7 @@ Browser-only app, geen backend, geen multi-user data. Notes blijven op de schijf
 | XSS via markdown content (live preview) | CodeMirror widgets gebruiken `textContent`/`setAttribute`, nooit `innerHTML` van content. |
 | XSS via PDF export | `marked` output gaat door `DOMPurify.sanitize` voordat hij als `innerHTML` op `#pdf-print-root` in het hoofd-document gezet wordt. |
 | XSS via Word export | Zelfde sanitize-stap; daarnaast wordt de title gestript van `<>&` en het document opent in Word, niet in een browser-context. |
-| Clickjacking (iframe-overlay tricks save/delete) | `frame-ancestors 'none'` in de Vercel CSP-header + `X-Frame-Options: DENY`. Werkt alleen op Vercel — GH Pages-versie heeft deze defense niet (meta-tag CSP negeert `frame-ancestors`). |
+| Clickjacking (iframe-overlay tricks save/delete) | `frame-ancestors 'none'` in de Vercel CSP-header + `X-Frame-Options: DENY`. |
 | Data leak naar externe servers | Geen externe network calls. CSP `default-src 'self'` + `connect-src 'self'` blokkeren onbedoelde uitgaande requests. |
 | Filesystem misbruik | File System Access API sandbox: app heeft alleen toegang tot de door de gebruiker expliciet gekozen werkmap. |
 | MIME-confusion / content-sniffing | `X-Content-Type-Options: nosniff` op Vercel. |
@@ -20,14 +20,14 @@ Browser-only app, geen backend, geen multi-user data. Notes blijven op de schijf
 
 ## Hosting & headers
 
-De app draait op twee origins:
+De app draait op één canonical origin; de oude GH Pages-URL serveert sinds de migratie nog slechts een uitleg-pagina + cleanup-SW.
 
-| URL | Host | CSP-bron | Andere headers |
-|---|---|---|---|
-| `md-editor.elidesmet.nl` (canonical) | Vercel | HTTP-header in [`vercel.json`](../vercel.json) | XFO, nosniff, Referrer-Policy, Permissions-Policy, HSTS |
-| `eldesm.github.io/md-editor/` (legacy) | GitHub Pages | Meta-tag in `index.html` | Alleen wat GH Pages standaard zet (HSTS) |
+| URL | Host | Inhoud | CSP-bron | Andere headers |
+|---|---|---|---|---|
+| `md-editor.elidesmet.nl` | Vercel | de app | HTTP-header in [`vercel.json`](../vercel.json) | XFO, nosniff, Referrer-Policy, Permissions-Policy, HSTS |
+| `eldesm.github.io/md-editor/` | GitHub Pages | migratie-pagina ([`gh-pages/`](../gh-pages/)) | Meta-tag in `gh-pages/index.html` (minimaal — pagina rendert alleen tekst en een redirect-knop) | Alleen wat GH Pages standaard zet (HSTS) |
 
-GitHub Pages laat geen custom HTTP-headers toe. De meta-tag-CSP daar is een baseline voor bestaande PWA-installaties die nog niet zijn overgestapt. De canonical Vercel-deploy is strikter en heeft `frame-ancestors`, dat in een meta-tag wordt genegeerd.
+Bestaande PWA-installs op de GH Pages origin worden door `gh-pages/sw.js` proactief opgeruimd: caches gewist, service worker zelf-unregistert, clients ge-reload zodat ze de migratie-pagina zien. De canonical Vercel-deploy heeft de strikte CSP-header (incl. `frame-ancestors 'none'`).
 
 ### Vercel CSP (HTTP-header, canonical)
 
@@ -46,10 +46,6 @@ object-src 'none';
 base-uri 'self';
 form-action 'none';
 ```
-
-### GH Pages CSP (meta-tag, legacy)
-
-Identiek aan boven, maar zonder `frame-ancestors` (genegeerd in meta) en met `frame-src 'self'` (kan strikter, niet relevant zolang GH Pages geen iframes gebruikt).
 
 ## Code- en dependency-scanning
 - **Eigen code (`src/`)**: CodeQL met `security-extended` queries draait op push, PR en wekelijks (zie [CI.md § 1.3](CI.md)). Findings verschijnen in de GitHub Security-tab — server-side, niet via een PR-edit te verbergen. Detecteert XSS-sinks, prototype pollution, regex-DoS, onveilige deserialisaties en hardcoded secrets.

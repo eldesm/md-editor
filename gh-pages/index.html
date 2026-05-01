@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <title>md-editor — verhuisd</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --fg: #1a1a1a;
+        --muted: #555;
+        --accent: #01689b;
+        --code-bg: rgba(0, 0, 0, 0.06);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1a1a1a;
+          --fg: #f5f5f5;
+          --muted: #b0b0b0;
+          --code-bg: rgba(255, 255, 255, 0.08);
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        padding: 1.5rem;
+      }
+      main {
+        max-width: 560px;
+        width: 100%;
+      }
+      h1 {
+        color: var(--accent);
+        margin: 0 0 1rem;
+        font-size: 1.75rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.15rem;
+      }
+      p { margin: 0.75rem 0; }
+      ol { padding-left: 1.25rem; }
+      li { margin: 0.4rem 0; }
+      .btn {
+        display: inline-block;
+        background: var(--accent);
+        color: #fff;
+        padding: 0.85rem 1.4rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        margin: 0.5rem 0 1rem;
+      }
+      .btn:hover { filter: brightness(1.1); }
+      code {
+        background: var(--code-bg);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.92em;
+      }
+      .muted { color: var(--muted); font-size: 0.9rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>md-editor is verhuisd</h1>
+      <p>
+        De app draait nu op een nieuwe locatie met sterkere security-headers
+        (CSP-header in plaats van meta-tag, <code>frame-ancestors</code>,
+        HSTS, en meer):
+      </p>
+      <p>
+        <a class="btn" href="https://md-editor.elidesmet.nl/"
+          >Open md-editor.elidesmet.nl</a
+        >
+      </p>
+
+      <h2>Wat moet ik doen?</h2>
+      <ol>
+        <li>Open de nieuwe URL hierboven.</li>
+        <li>
+          Installeer de app opnieuw — klik op het installatie-icoon in de
+          adresbalk, of in Chrome/Edge: menu → "App installeren".
+        </li>
+        <li>
+          Open je werkmap zoals altijd. Je notes staan op je eigen schijf en
+          zijn niet verloren — ze zijn onafhankelijk van waar de app draait.
+        </li>
+      </ol>
+
+      <h2>En de oude installatie?</h2>
+      <p>
+        Deze pagina ruimt de oude PWA-installatie automatisch op (service
+        worker en cache worden gewist). Je kunt het oude PWA-icoon van je
+        bureaublad/dock verwijderen — het verwijst naar deze legacy-locatie
+        die niet meer wordt onderhouden.
+      </p>
+
+      <p class="muted">
+        De oude versie op <code>eldesm.github.io/md-editor</code> krijgt geen
+        updates meer. Veiligheidsfixes en nieuwe features verschijnen alleen
+        op <code>md-editor.elidesmet.nl</code>.
+      </p>
+    </main>
+    <script>
+      (async () => {
+        try {
+          if ("serviceWorker" in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+          }
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          }
+        } catch (err) {
+          console.warn("Cleanup failed:", err);
+        }
+      })();
+    </script>
+  </body>
+</html>

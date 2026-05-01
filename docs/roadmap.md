@@ -6,9 +6,10 @@
 - **Branch protection op `main`** met required status check op de `audit`-job — zodat een agent of mens de gates niet via een PR-edit kan neutraliseren. Te configureren in GitHub Settings, niet in deze repo. Zie [security.md § Bekende beperkingen](security.md).
 
 ## GH Pages decommissioning
-- **Meta-tag CSP verwijderen** uit `index.html` zodra alle bekende gebruikers zijn overgestapt naar `md-editor.elidesmet.nl`. De HTTP-header in `vercel.json` is de canonical policy.
-- **Redirect-pagina** op `eldesm.github.io/md-editor/` die naar de nieuwe URL stuurt (en de service worker daar unregistert), zodat oude PWA-installs vloeiend overgaan.
-- **`deploy.yml` workflow uitzetten** wanneer GH Pages niet meer nodig is.
+- **~~Migratie-pagina deployen~~** ✓ Gedaan: `gh-pages/` wordt door [deploy.yml](../.github/workflows/deploy.yml) op GH Pages gezet en ruimt de oude PWA-installatie automatisch op (zie [build.md](build.md)).
+- **Meta-tag CSP verwijderen** uit `index.html` zodra alle bekende gebruikers zijn overgestapt naar `md-editor.elidesmet.nl`. De HTTP-header in `vercel.json` is de canonical policy en de meta-tag voegt dan niets meer toe.
+- **`vite.config.ts` `base`-conditional opruimen** zodra GH Pages niet meer dient als app-host (alleen migration page) — fallback `/md-editor/` is dan alleen voor lokale dev relevant.
+- **`deploy.yml` workflow uitzetten** zodra je via metrics/feedback weet dat niemand meer op de oude URL zit. De migration-pagina kan dan ook offline.
 
 ## Features
 - **Echte `.docx`** in plaats van het huidige Word-HTML-document met `.doc` extensie (vereist een library als `docx`).
