@@ -18,6 +18,9 @@ import {
   hasSnapshots,
   listSnapshots,
   readSnapshot,
+  mirrorWorkspace,
+  inspectBackupTarget,
+  backupSubfolderName,
   stripMdExt,
   ensureMdExt,
   type SnapshotInfo,
@@ -38,6 +41,8 @@ const STATUS_FLASH_MS = 1500;
 const STORAGE_KEY_DIR = "lastDir";
 const STORAGE_KEY_FILE = "lastFile";
 const STORAGE_KEY_PINS_PREFIX = "pins:";
+const STORAGE_KEY_BACKUP_DIR = "backupDir";
+const BACKUP_INTERVAL_MS = 15 * 60 * 1000;
 const IS_MAC = /Mac|iPad|iPhone|iPod/.test(navigator.platform);
 const SLOT_LABEL = "Alt+";
 
@@ -74,6 +79,11 @@ let suppressChange = false;
 let restoreInFlight = false;
 let pendingReconnect: (() => Promise<void>) | null = null;
 let pinnedSlots: Record<string, string> = {};
+let backupDirHandle: FileSystemDirectoryHandle | null = null;
+let backupTimer: number | null = null;
+let backupInFlight = false;
+let lastBackupAt: Date | null = null;
+let lastBackupError: string | null = null;
 
 const editor = createEditor(editorEl, handleEditorChange);
 
@@ -340,6 +350,7 @@ async function applyOpenedFolder(
   setSaveStatus("idle", "");
   await refreshTree();
   await loadPinnedSlots();
+  scheduleBackupTimer();
 
   if (options.restoreLastFile) {
     const lastFile = await storage.get<string>(STORAGE_KEY_FILE);
@@ -591,6 +602,118 @@ function closeSettingsPopover(): void {
   settingsPopover.replaceChildren();
 }
 
+function clearBackupTimer(): void {
+  if (backupTimer !== null) {
+    clearInterval(backupTimer);
+    backupTimer = null;
+  }
+}
+
+function scheduleBackupTimer(): void {
+  clearBackupTimer();
+  if (!backupDirHandle || !dirHandle) return;
+  backupTimer = window.setInterval(() => void runBackup(), BACKUP_INTERVAL_MS);
+}
+
+async function runBackup(): Promise<void> {
+  if (backupInFlight || !backupDirHandle || !dirHandle) return;
+  backupInFlight = true;
+  try {
+    const perm = await backupDirHandle.queryPermission({ mode: "readwrite" });
+    if (perm !== "granted") {
+      lastBackupError = "Permission needed — click Refresh access";
+      if (!settingsPopover.hidden) buildSettingsPopover();
+      return;
+    }
+    await mirrorWorkspace(dirHandle, backupDirHandle);
+    lastBackupAt = new Date();
+    lastBackupError = null;
+  } catch (err) {
+    console.error(err);
+    lastBackupError = (err as Error).message || "Backup failed";
+  } finally {
+    backupInFlight = false;
+    if (!settingsPopover.hidden) buildSettingsPopover();
+  }
+}
+
+async function handlePickBackupDir(): Promise<void> {
+  try {
+    const handle = await pickDirectory();
+    if (dirHandle && (await dirHandle.isSameEntry(handle))) {
+      window.alert("Backup folder cannot be the workspace itself.");
+      return;
+    }
+    if (dirHandle) {
+      const subName = backupSubfolderName(dirHandle.name);
+      const info = await inspectBackupTarget(handle, dirHandle.name);
+      if (info.exists && info.entryCount > 0) {
+        const count = info.entryCount > 50 ? "50+" : String(info.entryCount);
+        const ok = window.confirm(
+          `"${handle.name}/${subName}" bestaat al en bevat ${count} item(s).\n\n` +
+          `Bij elke backup wordt deze map exact gelijkgemaakt aan je workspace — ` +
+          `alles erin dat niet in je workspace zit, wordt verwijderd.\n\n` +
+          `Doorgaan?`,
+        );
+        if (!ok) return;
+      }
+    }
+    backupDirHandle = handle;
+    lastBackupAt = null;
+    lastBackupError = null;
+    await storage.set(STORAGE_KEY_BACKUP_DIR, handle);
+    scheduleBackupTimer();
+    buildSettingsPopover();
+    void runBackup();
+  } catch (err) {
+    if ((err as Error).name !== "AbortError") {
+      console.error(err);
+      window.alert(`Could not select backup folder: ${(err as Error).message}`);
+    }
+  }
+}
+
+async function handleClearBackupDir(): Promise<void> {
+  backupDirHandle = null;
+  lastBackupAt = null;
+  lastBackupError = null;
+  clearBackupTimer();
+  await storage.del(STORAGE_KEY_BACKUP_DIR);
+  buildSettingsPopover();
+}
+
+async function handleRefreshBackupAccess(): Promise<void> {
+  if (!backupDirHandle) return;
+  try {
+    const result = await backupDirHandle.requestPermission({ mode: "readwrite" });
+    if (result === "granted") {
+      lastBackupError = null;
+      scheduleBackupTimer();
+      void runBackup();
+    }
+    buildSettingsPopover();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function tryRestoreBackupDir(): Promise<void> {
+  const saved = await storage.get<FileSystemDirectoryHandle>(STORAGE_KEY_BACKUP_DIR);
+  if (!saved) return;
+  backupDirHandle = saved;
+  try {
+    const status = await saved.queryPermission({ mode: "readwrite" });
+    if (status === "granted") {
+      scheduleBackupTimer();
+    } else {
+      lastBackupError = "Permission needed — click Refresh access";
+    }
+  } catch {
+    await storage.del(STORAGE_KEY_BACKUP_DIR);
+    backupDirHandle = null;
+  }
+}
+
 function buildSettingsPopover(): void {
   const mod = "Ctrl+";
   const sections: { title: string; rows: { key: string; desc: string }[] }[] = [
@@ -645,6 +768,89 @@ function buildSettingsPopover(): void {
     }
     settingsPopover.appendChild(wrap);
   }
+
+  const backupSection = document.createElement("div");
+  backupSection.className = "settings-section";
+  const backupTitle = document.createElement("div");
+  backupTitle.className = "settings-section-title";
+  backupTitle.textContent = "Backup";
+  backupSection.appendChild(backupTitle);
+
+  const backupBody = document.createElement("div");
+  backupBody.className = "settings-backup";
+
+  if (backupDirHandle) {
+    const status = document.createElement("div");
+    status.className = "settings-backup-status";
+    const folderLine = document.createElement("div");
+    folderLine.className = "settings-backup-folder";
+    folderLine.textContent = backupDirHandle.name;
+    folderLine.title = backupDirHandle.name;
+    status.appendChild(folderLine);
+
+    const meta = document.createElement("div");
+    meta.className = "settings-backup-meta";
+    if (lastBackupError) {
+      meta.textContent = lastBackupError;
+      meta.classList.add("error");
+    } else if (backupInFlight) {
+      meta.textContent = "Backing up…";
+    } else if (lastBackupAt) {
+      meta.textContent = `Laatste backup: ${formatRelative(lastBackupAt)}`;
+    } else {
+      meta.textContent = "Backup elke 15 min";
+    }
+    status.appendChild(meta);
+    backupBody.appendChild(status);
+
+    const actions = document.createElement("div");
+    actions.className = "settings-backup-actions";
+    if (lastBackupError && lastBackupError.includes("Permission")) {
+      const refreshBtn = document.createElement("button");
+      refreshBtn.type = "button";
+      refreshBtn.className = "settings-backup-btn";
+      refreshBtn.textContent = "Refresh access";
+      refreshBtn.addEventListener("click", () => void handleRefreshBackupAccess());
+      actions.appendChild(refreshBtn);
+    } else {
+      const nowBtn = document.createElement("button");
+      nowBtn.type = "button";
+      nowBtn.className = "settings-backup-btn";
+      nowBtn.textContent = "Back up now";
+      nowBtn.disabled = backupInFlight || !dirHandle;
+      nowBtn.addEventListener("click", () => void runBackup());
+      actions.appendChild(nowBtn);
+    }
+    const changeBtn = document.createElement("button");
+    changeBtn.type = "button";
+    changeBtn.className = "settings-backup-btn";
+    changeBtn.textContent = "Change…";
+    changeBtn.addEventListener("click", () => void handlePickBackupDir());
+    actions.appendChild(changeBtn);
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.className = "settings-backup-btn settings-backup-btn-danger";
+    clearBtn.textContent = "Disable";
+    clearBtn.addEventListener("click", () => void handleClearBackupDir());
+    actions.appendChild(clearBtn);
+    backupBody.appendChild(actions);
+  } else {
+    const desc = document.createElement("div");
+    desc.className = "settings-backup-meta";
+    desc.textContent =
+      "Pick a folder to mirror your workspace there every 15 min. We suggest somewhere in H://";
+    backupBody.appendChild(desc);
+
+    const pickBtn = document.createElement("button");
+    pickBtn.type = "button";
+    pickBtn.className = "settings-backup-btn";
+    pickBtn.textContent = "Choose backup folder…";
+    pickBtn.disabled = !dirHandle;
+    pickBtn.addEventListener("click", () => void handlePickBackupDir());
+    backupBody.appendChild(pickBtn);
+  }
+  backupSection.appendChild(backupBody);
+  settingsPopover.appendChild(backupSection);
 
   const footer = document.createElement("div");
   footer.className = "settings-footer";
@@ -1074,5 +1280,8 @@ window.addEventListener("beforeunload", (e) => {
 document.title = `md-editor ${__APP_VERSION__}`;
 renderBreadcrumbs();
 updateWordCount("");
-void tryRestoreLastFolder();
+void (async () => {
+  await tryRestoreBackupDir();
+  await tryRestoreLastFolder();
+})();
 

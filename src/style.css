@@ -344,6 +344,60 @@ button {
   color: var(--fg-muted);
 }
 
+.settings-backup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-backup-folder {
+  font-size: 11px;
+  color: var(--fg);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-backup-meta {
+  font-size: 11px;
+  color: var(--fg-muted);
+  line-height: 1.35;
+}
+
+.settings-backup-meta.error {
+  color: #c44;
+}
+
+.settings-backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.settings-backup-btn {
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-s);
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.settings-backup-btn:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.settings-backup-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.settings-backup-btn-danger {
+  color: #c44;
+}
+
 .settings-footer {
   border-top: 1px solid var(--border);
   margin-top: 6px;

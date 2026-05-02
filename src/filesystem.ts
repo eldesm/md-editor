@@ -441,6 +441,101 @@ export async function importFile(
   return `${folderName}/${finalName}`;
 }
 
+async function mirrorInto(
+  src: FileSystemDirectoryHandle,
+  dest: FileSystemDirectoryHandle,
+): Promise<void> {
+  const srcNames = new Set<string>();
+  for await (const [name, h] of src.entries()) {
+    srcNames.add(name);
+    if (h.kind === "file") {
+      const file = await (h as FileSystemFileHandle).getFile();
+      let needsCopy = true;
+      try {
+        const existing = await dest.getFileHandle(name);
+        const existingFile = await existing.getFile();
+        if (
+          existingFile.size === file.size &&
+          existingFile.lastModified >= file.lastModified
+        ) {
+          needsCopy = false;
+        }
+      } catch (err) {
+        if ((err as DOMException).name === "TypeMismatchError") {
+          await dest.removeEntry(name, { recursive: true });
+        } else if ((err as DOMException).name !== "NotFoundError") {
+          throw err;
+        }
+      }
+      if (needsCopy) {
+        const newHandle = await dest.getFileHandle(name, { create: true });
+        const w = await newHandle.createWritable();
+        await w.write(file);
+        await w.close();
+      }
+    } else {
+      try {
+        await dest.getFileHandle(name);
+        await dest.removeEntry(name);
+      } catch (err) {
+        const errName = (err as DOMException).name;
+        if (errName !== "NotFoundError" && errName !== "TypeMismatchError") throw err;
+      }
+      const newSub = await dest.getDirectoryHandle(name, { create: true });
+      await mirrorInto(h as FileSystemDirectoryHandle, newSub);
+    }
+  }
+  const stale: { name: string; isFile: boolean }[] = [];
+  for await (const [name, h] of dest.entries()) {
+    if (!srcNames.has(name)) stale.push({ name, isFile: h.kind === "file" });
+  }
+  for (const { name } of stale) {
+    await dest.removeEntry(name, { recursive: true });
+  }
+}
+
+export function backupSubfolderName(workspaceName: string): string {
+  return `${workspaceName}_backup`;
+}
+
+export async function mirrorWorkspace(
+  source: FileSystemDirectoryHandle,
+  backupRoot: FileSystemDirectoryHandle,
+): Promise<void> {
+  if (await source.isSameEntry(backupRoot)) {
+    throw new Error("Backup folder cannot be the workspace itself");
+  }
+  const destFolder = await backupRoot.getDirectoryHandle(
+    backupSubfolderName(source.name),
+    { create: true },
+  );
+  if (await source.isSameEntry(destFolder)) {
+    throw new Error("Backup folder cannot be inside the workspace");
+  }
+  await mirrorInto(source, destFolder);
+}
+
+export async function inspectBackupTarget(
+  backupRoot: FileSystemDirectoryHandle,
+  workspaceName: string,
+): Promise<{ exists: boolean; entryCount: number }> {
+  let target: FileSystemDirectoryHandle;
+  try {
+    target = await backupRoot.getDirectoryHandle(backupSubfolderName(workspaceName));
+  } catch (err) {
+    if ((err as DOMException).name === "NotFoundError") {
+      return { exists: false, entryCount: 0 };
+    }
+    throw err;
+  }
+  let count = 0;
+  for await (const _ of target.entries()) {
+    count++;
+    if (count > 50) break;
+  }
+  return { exists: true, entryCount: count };
+}
+
 export async function moveEntry(
   root: FileSystemDirectoryHandle,
   srcPath: string,
