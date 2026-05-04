@@ -32,6 +32,7 @@ import { FileTree } from "./file-tree";
 import * as storage from "./storage";
 import { exportToPdf } from "./export-pdf";
 import { exportToWord } from "./export-docx";
+import { showMigrationBannerIfNeeded } from "./migration-banner";
 
 const SAVE_DEBOUNCE_MS = 400;
 const SNAPSHOT_IDLE_MS = 3 * 60 * 1000;
@@ -1280,6 +1281,7 @@ window.addEventListener("beforeunload", (e) => {
 document.title = `md-editor ${__APP_VERSION__}`;
 renderBreadcrumbs();
 updateWordCount("");
+showMigrationBannerIfNeeded();
 void (async () => {
   await tryRestoreBackupDir();
   await tryRestoreLastFolder();
