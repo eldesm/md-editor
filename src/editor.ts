@@ -1,6 +1,6 @@
-import { EditorState, EditorSelection } from "@codemirror/state";
+import { EditorState, EditorSelection, Prec } from "@codemirror/state";
 import { EditorView, keymap, highlightActiveLine, KeyBinding } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentMore, indentLess } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { indentOnInput, indentUnit, bracketMatching } from "@codemirror/language";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
@@ -128,6 +128,13 @@ export function createEditor(parent: HTMLElement, onChange: EditorChangeHandler)
     }
   });
 
+  const tabKeymap = Prec.highest(
+    keymap.of([
+      { key: "Tab", run: indentMore, preventDefault: true },
+      { key: "Shift-Tab", run: indentLess, preventDefault: true },
+    ]),
+  );
+
   const state = EditorState.create({
     doc: "",
     extensions: [
@@ -140,7 +147,8 @@ export function createEditor(parent: HTMLElement, onChange: EditorChangeHandler)
       markdown({ base: markdownLanguage }),
       proseTheme,
       markdownLivePreview,
-      keymap.of([...markdownShortcuts, ...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
+      tabKeymap,
+      keymap.of([...markdownShortcuts, ...defaultKeymap, ...historyKeymap, ...searchKeymap]),
       EditorView.lineWrapping,
       updateListener,
     ],
