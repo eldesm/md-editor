@@ -1,6 +1,6 @@
 # Security status
 
-Laatst bijgewerkt: **2026-06-15 08:00 UTC** ([run](https://github.com/eldesm/md-editor/actions/runs/27532315095))
+Laatst bijgewerkt: **2026-06-22 08:02 UTC** ([run](https://github.com/eldesm/md-editor/actions/runs/27938279533))
 
 Automatisch gegenereerd door `scripts/security-report.mjs` via de [Security audit workflow](../.github/workflows/audit.yml). Niet handmatig wijzigen — een nieuwe run overschrijft het.
 
@@ -12,7 +12,7 @@ Bron: `npm audit --omit=dev --json`
 |---|---|
 | Critical | 0 |
 | High | 0 |
-| Moderate | 0 |
+| Moderate | 1 |
 | Low | 0 |
 | Info | 0 |
 
