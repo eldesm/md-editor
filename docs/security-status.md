@@ -1,6 +1,6 @@
 # Security status
 
-Laatst bijgewerkt: **2026-10-12 14:16 UTC** ([run](https://github.com/eldesm/md-editor/actions/runs/38261629080))
+Laatst bijgewerkt: **2026-10-19 11:57 UTC** ([run](https://github.com/eldesm/md-editor/actions/runs/39248315441))
 
 Automatisch gegenereerd door `scripts/security-report.mjs` via de [Security audit workflow](../.github/workflows/audit.yml). Niet handmatig wijzigen — een nieuwe run overschrijft het.
 
