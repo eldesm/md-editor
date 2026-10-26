@@ -1,6 +1,6 @@
 # Security status
 
-Laatst bijgewerkt: **2026-10-19 11:57 UTC** ([run](https://github.com/eldesm/md-editor/actions/runs/39248315441))
+Laatst bijgewerkt: **2026-10-26 12:10 UTC** ([run](https://github.com/eldesm/md-editor/actions/runs/40320444657))
 
 Automatisch gegenereerd door `scripts/security-report.mjs` via de [Security audit workflow](../.github/workflows/audit.yml). Niet handmatig wijzigen — een nieuwe run overschrijft het.
 
@@ -11,12 +11,12 @@ Bron: `npm audit --omit=dev --json`
 | Severity | Aantal |
 |---|---|
 | Critical | 0 |
-| High | 0 |
-| Moderate | 1 |
+| High | 1 |
+| Moderate | 0 |
 | Low | 0 |
 | Info | 0 |
 
-**Status: schoon.** Geen blokkerende kwetsbaarheden.
+**Status: 1 blokkerende finding(s)** (high/critical) — CI faalt totdat dit opgelost is.
 
 ## 2. Content-Security-Policy
 
